@@ -64,7 +64,7 @@ export function PointsTable() {
           </thead>
           <tbody className="bg-gray-900 divide-y divide-gray-700">
             {sortedPlayers.map((player) => (
-              <tr key={player.id} className="hover:bg-gray-800">
+              <tr key={player.id} className="hover:bg-white-800">
                 <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-100">
                   {player.name}
                 </td>

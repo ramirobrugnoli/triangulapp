@@ -3,8 +3,8 @@
 interface TeamScore {
   name: string;
   points: number;
-  wins: number;  // victorias por 2 goles
-  normalWins: number;  // victorias por 1 gol
+  wins: number; // victorias por 2 goles
+  normalWins: number; // victorias por 1 gol
   draws: number;
 }
 

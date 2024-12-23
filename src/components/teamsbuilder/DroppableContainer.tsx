@@ -24,7 +24,7 @@ export function DroppableContainer({
   const { setNodeRef } = useDroppable({ id });
 
   return (
-    <div className="border border-gray-700 rounded-lg p-4">
+    <div className="border border-green-700 rounded-lg p-4">
       <h3 className="mb-4 text-lg font-bold">{title}</h3>
       <SortableContext
         id={id}

@@ -1,9 +1,3 @@
-import {
-  DragEndEvent,
-  DragOverEvent as DndDragOverEvent,
-  UniqueIdentifier,
-} from "@dnd-kit/core";
-
 export interface TeamBuilderState {
   available: Player[];
   team1: Player[];
