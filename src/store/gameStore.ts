@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { GameState, Team, TeamScore } from "@/types";
+import { GameState, Team, TeamBuilderState, TeamScore } from "@/types";
 
 interface GameStore extends GameState {
   // Funciones de actualización de score
@@ -30,6 +30,12 @@ interface GameStore extends GameState {
   startTimer: () => void;
   stopTimer: () => void;
   getTimeLeft: () => number;
+  updateTeamPlayers: (teamBuilder: TeamBuilderState) => void;
+  assignTeamsToGame: (teams: {
+    teamA: Team;
+    teamB: Team;
+    waiting: Team;
+  }) => void;
 }
 
 const MATCH_DURATION = 7 * 60;
@@ -54,6 +60,12 @@ const initialState: GameState = {
     MATCH_DURATION,
   },
   isActive: false,
+  teamBuilder: {
+    available: [],
+    team1: [],
+    team2: [],
+    team3: [],
+  },
 };
 
 export const useGameStore = create<GameStore>()(
@@ -180,62 +192,78 @@ export const useGameStore = create<GameStore>()(
           },
         })),
 
-        startTimer: () => 
-          set((state) => ({
-            ...state,
-            timer: {
-              ...state.timer,
-              endTime: Date.now() + (state.timer.MATCH_DURATION * 1000)
-            }
-          })),
-  
-        stopTimer: () => 
-          set((state) => ({
-            ...state,
-            timer: {
-              ...state.timer,
-              endTime: null
-            }
-          })),
-  
-        getTimeLeft: () => {
-          const state = get();
-          if (!state.timer.endTime) return state.timer.MATCH_DURATION;
-          
-          const timeLeft = Math.ceil((state.timer.endTime - Date.now()) / 1000);
-          return Math.max(0, Math.min(timeLeft, state.timer.MATCH_DURATION));
-        },
-  
-        setIsActive: (active) => {
-          const state = get();
-          if (active) {
-            get().startTimer();
-          } else {
-            get().stopTimer();
-          }
-          set({ ...state, isActive: active });
-        },
-  
-        resetGame: () =>
-          set((state) => ({
-            ...state,
-            scores: { teamA: 0, teamB: 0 },
-            isActive: false,
-            timer: {
-              ...state.timer,
-              endTime: null
-            }
-          })),
+      startTimer: () =>
+        set((state) => ({
+          ...state,
+          timer: {
+            ...state.timer,
+            endTime: Date.now() + state.timer.MATCH_DURATION * 1000,
+          },
+        })),
+
+      stopTimer: () =>
+        set((state) => ({
+          ...state,
+          timer: {
+            ...state.timer,
+            endTime: null,
+          },
+        })),
+
+      getTimeLeft: () => {
+        const state = get();
+        if (!state.timer.endTime) return state.timer.MATCH_DURATION;
+
+        const timeLeft = Math.ceil((state.timer.endTime - Date.now()) / 1000);
+        return Math.max(0, Math.min(timeLeft, state.timer.MATCH_DURATION));
+      },
+
+      setIsActive: (active) => {
+        const state = get();
+        if (active) {
+          get().startTimer();
+        } else {
+          get().stopTimer();
+        }
+        set({ ...state, isActive: active });
+      },
+
+      resetGame: () =>
+        set((state) => ({
+          ...state,
+          scores: { teamA: 0, teamB: 0 },
+          isActive: false,
+          timer: {
+            ...state.timer,
+            endTime: null,
+          },
+        })),
+      updateTeamPlayers: (teamBuilder) =>
+        set((state) => ({
+          ...state,
+          teamBuilder,
+        })),
+
+      assignTeamsToGame: () =>
+        set((state) => ({
+          ...state,
+          activeTeams: {
+            teamA: state.teamBuilder.team1[0]?.name ?? "Equipo 1",
+            teamB: state.teamBuilder.team2[0]?.name ?? "Equipo 2",
+            waiting: state.teamBuilder.team3[0]?.name ?? "Equipo 3",
+          } as { teamA: Team; teamB: Team; waiting: Team },
+        })),
     }),
     {
-      name: 'game-storage',
+      name: "game-storage",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         dailyScores: state.dailyScores,
         activeTeams: state.activeTeams,
         scores: state.scores,
         isActive: state.isActive,
-        timer: state.timer
+        timer: state.timer,
+        teamBuilder: state.teamBuilder,
       }),
     }
   )
