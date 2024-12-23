@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { GameState, Team, TeamBuilderState, TeamScore } from "@/types";
+import {
+  GameState,
+  GameTeam,
+  Team,
+  TeamBuilderState,
+  TeamScore,
+} from "@/types";
 
 interface GameStore extends GameState {
   // Funciones de actualización de score
@@ -36,15 +42,22 @@ interface GameStore extends GameState {
     teamB: Team;
     waiting: Team;
   }) => void;
+  setTeams: (teams: {
+    teamA: GameTeam;
+    teamB: GameTeam;
+    waiting: GameTeam;
+  }) => void;
+
+  registerGoal: (playerId: string, team: "A" | "B") => void;
 }
 
 const MATCH_DURATION = 7 * 60;
 
 const initialState: GameState = {
   activeTeams: {
-    teamA: "Equipo 1",
-    teamB: "Equipo 2",
-    waiting: "Equipo 3",
+    teamA: { name: "Equipo 1", members: [] },
+    teamB: { name: "Equipo 2", members: [] },
+    waiting: { name: "Equipo 3", members: [] },
   },
   scores: {
     teamA: 0,
@@ -248,12 +261,49 @@ export const useGameStore = create<GameStore>()(
         set((state) => ({
           ...state,
           activeTeams: {
-            teamA: state.teamBuilder.team1[0]?.name ?? "Equipo 1",
-            teamB: state.teamBuilder.team2[0]?.name ?? "Equipo 2",
-            waiting: state.teamBuilder.team3[0]?.name ?? "Equipo 3",
-          } as { teamA: Team; teamB: Team; waiting: Team },
+            teamA: {
+              name: "Equipo 1",
+              members: state.teamBuilder.team1.map((player) => ({
+                id: player.id,
+                name: player.name,
+              })),
+            },
+            teamB: {
+              name: "Equipo 2",
+              members: state.teamBuilder.team2.map((player) => ({
+                id: player.id,
+                name: player.name,
+              })),
+            },
+            waiting: {
+              name: "Equipo 3",
+              members: state.teamBuilder.team3.map((player) => ({
+                id: player.id,
+                name: player.name,
+              })),
+            },
+          },
         })),
+
+      setTeams: (teams: {
+        teamA: GameTeam;
+        teamB: GameTeam;
+        waiting: GameTeam;
+      }) =>
+        set((state) => ({
+          ...state,
+          activeTeams: teams,
+        })),
+
+      registerGoal: (playerId, team) =>
+        set((state) => {
+          console.log(playerId, team);
+          // Aquí la lógica para actualizar las estadísticas del jugador
+          // Podrías actualizar dailyScores o tener una estructura separada para estadísticas de jugadores
+          return state;
+        }),
     }),
+
     {
       name: "game-storage",
       storage: createJSONStorage(() => localStorage),

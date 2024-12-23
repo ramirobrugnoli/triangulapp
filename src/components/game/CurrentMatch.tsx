@@ -4,7 +4,8 @@ import { useGameStore } from "@/store/gameStore";
 import { GameTimer } from "./GameTimer";
 import { ScoreBoard } from "./ScoreBoard";
 import { DailyScoreTable } from "./DailyScoreTable";
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import { GoalScorerModal } from "./GoalScorerModal";
 
 export function CurrentMatch() {
   const {
@@ -32,52 +33,95 @@ export function CurrentMatch() {
   };
 
   const timerRef = useRef<{ resetTimer: () => void } | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState<"A" | "B" | null>(null);
 
   const handleTimeUp = () => {
     if (scores.teamA > scores.teamB) {
-      updateDailyScore(activeTeams.teamA, "normalWin");
+      updateDailyScore(activeTeams.teamA.name, "normalWin");
       rotateTeams("A");
     } else if (scores.teamB > scores.teamA) {
-      updateDailyScore(activeTeams.teamB, "normalWin");
+      updateDailyScore(activeTeams.teamB.name, "normalWin");
       rotateTeams("B");
     } else {
-      updateDailyScore(activeTeams.teamA, "draw");
-      updateDailyScore(activeTeams.teamB, "draw");
+      updateDailyScore(activeTeams.teamA.name, "draw");
+      updateDailyScore(activeTeams.teamB.name, "draw");
       rotateTeams("draw");
     }
     resetGame();
   };
 
-  const handleGoal = (team: "A" | "B") => {
+  const handleGoalClick = (team: "A" | "B") => {
+    setSelectedTeam(team);
+    setModalOpen(true);
+  };
+
+  const handleGoalConfirm = (playerId: string) => {
+    const team = selectedTeam!;
     const currentScore = scores[`team${team}`];
     const newScore = currentScore + 1;
     updateScore(team, newScore);
+    console.log("gol de", playerId, "para el equipo", team);
+
+    // Aquí registraremos el gol del jugador cuando implementemos la función en el store
+    // registerGoal(playerId, team);
 
     if (newScore === 2) {
-      updateDailyScore(activeTeams[`team${team}`], "win");
+      updateDailyScore(activeTeams[`team${team}`].name, "win");
       rotateTeams(team);
       resetGame();
       timerRef.current?.resetTimer();
     }
+
+    setModalOpen(false);
+    setSelectedTeam(null);
   };
 
   return (
     <div className="space-y-6">
       <div className="bg-gray-900 p-4 rounded-lg text-center">
         <h2 className="text-xl mb-2">Afuera</h2>
-        <div className="text-green-500 font-bold">{activeTeams.waiting}</div>
+        <div className="text-green-500 font-bold">
+          {activeTeams.waiting.name}
+        </div>
+        <div className="text-sm text-gray-400">
+          {activeTeams.waiting.members.map((member) => member.name).join(", ")}
+        </div>
       </div>
 
       <GameTimer onTimeUp={handleTimeUp} isActive={isActive} />
 
       <ScoreBoard
-        teamA={activeTeams.teamA}
-        teamB={activeTeams.teamB}
+        teamA={activeTeams.teamA.name}
+        teamB={activeTeams.teamB.name}
         scoreTeamA={scores.teamA}
         scoreTeamB={scores.teamB}
-        onGoalTeamA={() => handleGoal("A")}
-        onGoalTeamB={() => handleGoal("B")}
+        onGoalTeamA={() => handleGoalClick("A")}
+        onGoalTeamB={() => handleGoalClick("B")}
       />
+
+      <GoalScorerModal
+        isOpen={modalOpen}
+        team={selectedTeam || "A"}
+        players={selectedTeam ? activeTeams[`team${selectedTeam}`].members : []}
+        onClose={() => setModalOpen(false)}
+        onSelect={handleGoalConfirm}
+      />
+
+      <div className="grid grid-cols-2 gap-4 text-sm text-gray-400">
+        <div>
+          <div className="font-bold mb-1">{activeTeams.teamA.name}</div>
+          <div>
+            {activeTeams.teamA.members.map((member) => member.name).join(", ")}
+          </div>
+        </div>
+        <div>
+          <div className="font-bold mb-1">{activeTeams.teamB.name}</div>
+          <div>
+            {activeTeams.teamB.members.map((member) => member.name).join(", ")}
+          </div>
+        </div>
+      </div>
 
       <button
         onClick={handleStartStop}
@@ -97,7 +141,6 @@ export function CurrentMatch() {
 
       <button
         onClick={() => {
-          // Aquí iría la lógica para enviar los datos al backend
           const matchData = {
             date: new Date(),
             scores: dailyScores,

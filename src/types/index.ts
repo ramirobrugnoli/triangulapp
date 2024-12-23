@@ -30,11 +30,6 @@ export interface TeamScore {
 }
 
 export interface GameState {
-  activeTeams: {
-    teamA: Team;
-    teamB: Team;
-    waiting: Team;
-  };
   scores: {
     teamA: number;
     teamB: number;
@@ -43,6 +38,20 @@ export interface GameState {
   dailyScores: TeamScore[];
   isActive: boolean;
   teamBuilder: TeamBuilderState;
+  activeTeams: {
+    teamA: GameTeam;
+    teamB: GameTeam;
+    waiting: GameTeam;
+  };
+}
+export interface TeamMember {
+  id: string;
+  name: string;
+}
+
+export interface GameTeam {
+  name: Team;
+  members: TeamMember[];
 }
 
 export interface TimerState {
@@ -75,4 +84,12 @@ export interface DragEndEvent {
     id: string;
     data?: { current?: { sortable?: { containerId: string } } };
   } | null;
+}
+
+export interface GoalScorerModalProps {
+  isOpen: boolean;
+  team: "A" | "B";
+  players: { id: string; name: string }[];
+  onClose: () => void;
+  onSelect: (playerId: string) => void;
 }

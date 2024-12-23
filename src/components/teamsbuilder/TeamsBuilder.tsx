@@ -1,26 +1,17 @@
 "use client";
 
-import { DragEndEvent, DragOverEvent, Player } from "@/types";
+import { Player } from "@/types";
 import { useEffect, useState } from "react";
 import { playerService } from "@/lib/api";
 import { useGameStore } from "@/store/gameStore";
-import {
-  DndContext,
-  closestCorners,
-  DragOverlay,
-  useSensors,
-  useSensor,
-  PointerSensor,
-  TouchSensor,
-} from "@dnd-kit/core";
-import { DroppableContainer } from "./DroppableContainer";
-import { arrayMove } from "@dnd-kit/sortable";
+import { useRouter } from "next/navigation";
 
 interface TeamBuilderState {
   available: Player[];
   team1: Player[];
   team2: Player[];
   team3: Player[];
+  [key: string]: Player[];
 }
 
 export function TeamsBuilder() {
@@ -30,21 +21,11 @@ export function TeamsBuilder() {
     team2: [],
     team3: [],
   });
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { setTeams: setGlobalTeams } = useGameStore();
-
-  const sensors = useSensors(
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 250,
-        tolerance: 5,
-      },
-    }),
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 5 },
-    })
-  );
+  const router = useRouter();
 
   useEffect(() => {
     const fetchPlayers = async () => {
@@ -61,121 +42,179 @@ export function TeamsBuilder() {
     fetchPlayers();
   }, []);
 
-  const handleDragOver = ({ over, active }: DragOverEvent) => {
-    const overId = over?.id;
-    if (!overId) return;
-
-    const activeContainer = active.data.current.sortable.containerId;
-    const overContainer = over?.data?.current?.sortable?.containerId || over.id;
-
-    if (activeContainer !== overContainer) {
-      setTeams((prev: TeamBuilderState) => {
-        const activeItems = prev[activeContainer as keyof TeamBuilderState];
-        const overItems = prev[overContainer as keyof TeamBuilderState] || [];
-        const activeIndex = activeItems.findIndex(
-          (item) => item.id === active.id
-        );
-        const activeItem = activeItems[activeIndex];
-
-        return {
-          ...prev,
-          [activeContainer]: activeItems.filter(
-            (item) => item.id !== active.id
-          ),
-          [overContainer]: [...overItems, activeItem],
-        };
-      });
-    }
+  // Función para manejar la selección de jugador
+  const handlePlayerSelect = (player: Player) => {
+    setSelectedPlayer(player);
   };
 
-  const handleDragEnd = ({ active, over }: DragEndEvent) => {
-    if (!over) return;
+  // Función para asignar jugador a un equipo
+  const handleTeamAssign = (teamId: "team1" | "team2" | "team3") => {
+    if (!selectedPlayer) return;
 
-    const activeContainer = active.data.current.sortable.containerId;
-    const overContainer = over?.data?.current?.sortable?.containerId || over.id;
+    setTeams((prev) => {
+      // Remover jugador de su contenedor actual
+      const newTeams = { ...prev };
+      Object.keys(newTeams).forEach((key) => {
+        newTeams[key] = newTeams[key].filter((p) => p.id !== selectedPlayer.id);
+      });
 
-    if (activeContainer === overContainer) {
-      const items = teams[activeContainer as keyof TeamBuilderState];
-      const oldIndex = items.findIndex((item) => item.id === active.id);
-      const newIndex = items.findIndex((item) => item.id === over.id);
+      // Agregar jugador al nuevo equipo
+      newTeams[teamId] = [...newTeams[teamId], selectedPlayer];
 
-      if (oldIndex !== -1 && newIndex !== -1) {
-        setTeams((prev: TeamBuilderState) => ({
-          ...prev,
-          [activeContainer]: arrayMove(items, oldIndex, newIndex),
-        }));
-      }
+      return newTeams;
+    });
+
+    setSelectedPlayer(null);
+  };
+
+  const handleConfirmTeams = async () => {
+    if (
+      teams.team1.length === 0 ||
+      teams.team2.length === 0 ||
+      teams.team3.length === 0
+    ) {
+      alert("Todos los equipos deben tener al menos un jugador");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      setGlobalTeams({
+        teamA: {
+          name: "Equipo 1",
+          members: teams.team1.map((player) => ({
+            id: player.id,
+            name: player.name,
+          })),
+        },
+        teamB: {
+          name: "Equipo 2",
+          members: teams.team2.map((player) => ({
+            id: player.id,
+            name: player.name,
+          })),
+        },
+        waiting: {
+          name: "Equipo 3",
+          members: teams.team3.map((player) => ({
+            id: player.id,
+            name: player.name,
+          })),
+        },
+      });
+
+      alert("Equipos guardados correctamente");
+      setTimeout(() => {
+        router.push("/anotador");
+      }, 1000);
+    } catch (error) {
+      alert("Error al guardar los equipos");
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500" />
+      <div className="flex justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500" />
+      </div>
     );
   }
 
+  const renderPlayerList = (items: Player[], title: string) => (
+    <div className="bg-gray-900 rounded-lg p-4">
+      <h3 className="text-lg font-bold mb-4">{title}</h3>
+      <div className="grid grid-cols-3 gap-2">
+        {items.map((player) => (
+          <button
+            key={player.id}
+            onClick={() => handlePlayerSelect(player)}
+            className={`
+             w-full p-2 rounded-lg text-sm
+             ${
+               selectedPlayer?.id === player.id
+                 ? "bg-green-600"
+                 : "bg-gray-700 hover:bg-gray-600"
+             }
+           `}
+          >
+            {player.name}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-      onDragStart={({ active }) => setActiveId(active.id)}
-    >
-      <div className="space-y-6">
-        <DroppableContainer
-          id="available"
-          items={teams.available}
-          title="Jugadores Disponibles"
-          className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto"
-          itemClassName="w-full px-3 py-2 text-center" // Nuevo prop para estilo de items
-        />
+    <div className="space-y-6">
+      {renderPlayerList(teams.available, "Jugadores Disponibles")}
 
-        <div className="grid grid-cols-3 gap-4">
-          <DroppableContainer
-            id="team1"
-            items={teams.team1}
-            title="Equipo 1"
-            className="min-h-[150px]"
-            itemClassName="w-full px-3 py-2 text-center" // Nuevo prop para estilo de items
-          />
-          <DroppableContainer
-            id="team2"
-            items={teams.team2}
-            title="Equipo 2"
-            className="min-h-[150px]"
-            itemClassName="w-full px-3 py-2 text-center" // Nuevo prop para estilo de items
-          />
-          <DroppableContainer
-            id="team3"
-            items={teams.team3}
-            title="Equipo 3"
-            className="min-h-[150px]"
-            itemClassName="w-full px-3 py-2 text-center" // Nuevo prop para estilo de items
-          />
-        </div>
-
-        <button
-          onClick={() =>
-            setGlobalTeams({
-              teamA: teams.team1[0]?.name || "Equipo 1",
-              teamB: teams.team2[0]?.name || "Equipo 2",
-              waiting: teams.team3[0]?.name || "Equipo 3",
-            })
-          }
-          className="w-full py-3 bg-green-600 hover:bg-green-700 rounded-lg"
-        >
-          Confirmar Equipos
-        </button>
+      <div className="grid grid-cols-3 gap-4">
+        {["team1", "team2", "team3"].map((teamId, index) => (
+          <div key={teamId} className="flex flex-col">
+            <div
+              onClick={
+                selectedPlayer
+                  ? () =>
+                      handleTeamAssign(teamId as "team1" | "team2" | "team3")
+                  : undefined
+              }
+              className={`
+        bg-gray-900 rounded-lg p-4
+        ${
+          selectedPlayer
+            ? "cursor-pointer border-2 border-blue-500 hover:border-blue-400"
+            : "border-2 border-transparent"
+        }
+        transition-all duration-200
+      `}
+            >
+              <h3 className="text-lg font-bold mb-4">Equipo {index + 1}</h3>
+              <div className="space-y-2">
+                {teams[teamId].map((player) => (
+                  <button
+                    key={player.id}
+                    onClick={(e) => {
+                      e.stopPropagation(); // Evita que el click llegue al contenedor padre
+                      handlePlayerSelect(player);
+                    }}
+                    className={`
+              w-full p-2 rounded-lg text-sm
+              ${
+                selectedPlayer?.id === player.id
+                  ? "bg-green-600"
+                  : "bg-gray-700 hover:bg-gray-600"
+              }
+            `}
+                  >
+                    {player.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      <DragOverlay>
-        {activeId && (
-          <div className="p-2 bg-gray-700 rounded border-2 border-green-500 text-center min-w-[100px]">
-            {teams.available.find((p) => p.id === activeId)?.name}
+      <button
+        onClick={handleConfirmTeams}
+        disabled={isSubmitting}
+        className={`
+         w-full py-3 rounded-lg
+         ${isSubmitting ? "bg-gray-600" : "bg-green-600 hover:bg-green-700"}
+       `}
+      >
+        {isSubmitting ? (
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
+            Guardando...
           </div>
+        ) : (
+          "Confirmar Equipos"
         )}
-      </DragOverlay>
-    </DndContext>
+      </button>
+    </div>
   );
 }
