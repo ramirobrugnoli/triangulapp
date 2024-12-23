@@ -42,22 +42,22 @@ export function PointsTable() {
         <table className="min-w-full divide-y divide-gray-700">
           <thead className="bg-gray-800">
             <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                 Jugador
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                 PJ
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                 G
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                 E
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                 P
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                 Pts
               </th>
             </tr>
@@ -65,22 +65,22 @@ export function PointsTable() {
           <tbody className="bg-gray-900 divide-y divide-gray-700">
             {sortedPlayers.map((player) => (
               <tr key={player.id} className="hover:bg-gray-800">
-                <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-100">
+                <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-100">
                   {player.name}
                 </td>
-                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
                   {player.stats.matches}
                 </td>
-                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
                   {player.stats.wins}
                 </td>
-                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
                   {player.stats.draws}
                 </td>
-                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
                   {player.stats.losses}
                 </td>
-                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
                   {player.stats.points}
                 </td>
               </tr>
