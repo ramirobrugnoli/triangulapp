@@ -14,6 +14,15 @@ interface TeamBuilderState {
   [key: string]: Player[];
 }
 
+const shuffleArray = (array: Player[]) => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
 export function TeamsBuilder() {
   const [teams, setTeams] = useState<TeamBuilderState>({
     available: [],
@@ -115,6 +124,24 @@ export function TeamsBuilder() {
     }
   };
 
+  const handleRandomTeams = () => {
+    const allPlayers = [
+      ...teams.available,
+      ...teams.team1,
+      ...teams.team2,
+      ...teams.team3,
+    ];
+
+    const shuffledPlayers = shuffleArray(allPlayers);
+
+    setTeams({
+      team1: shuffledPlayers.slice(0, 5),
+      team2: shuffledPlayers.slice(5, 10),
+      team3: shuffledPlayers.slice(10, 15),
+      available: shuffledPlayers.slice(15),
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center">
@@ -125,7 +152,16 @@ export function TeamsBuilder() {
 
   const renderPlayerList = (items: Player[], title: string) => (
     <div className="bg-gray-900 rounded-lg p-4">
-      <h3 className="text-lg font-bold mb-4">{title}</h3>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-bold">{title}</h3>
+        <button
+          onClick={handleRandomTeams}
+          className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg"
+          title="Armar equipos aleatorios"
+        >
+          🎲 Random
+        </button>
+      </div>
       <div className="grid grid-cols-3 gap-2">
         {items.map((player) => (
           <button

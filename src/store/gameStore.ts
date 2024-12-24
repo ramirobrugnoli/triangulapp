@@ -6,7 +6,9 @@ import {
   Team,
   TeamBuilderState,
   TeamScore,
+  TriangularResult,
 } from "@/types";
+import { postTriangularResult } from "@/lib/api";
 
 interface GameStore extends GameState {
   // Funciones de actualización de score
@@ -48,7 +50,8 @@ interface GameStore extends GameState {
     waiting: GameTeam;
   }) => void;
 
-  registerGoal: (playerId: string, team: "A" | "B") => void;
+  registerGoal: (playerId: string) => void;
+  finalizeTriangular: () => Promise<void>;
 }
 
 const MATCH_DURATION = 7 * 60;
@@ -79,6 +82,7 @@ const initialState: GameState = {
     team2: [],
     team3: [],
   },
+  currentGoals: {},
 };
 
 export const useGameStore = create<GameStore>()(
@@ -295,13 +299,79 @@ export const useGameStore = create<GameStore>()(
           activeTeams: teams,
         })),
 
-      registerGoal: (playerId, team) =>
-        set((state) => {
-          console.log(playerId, team);
-          // Aquí la lógica para actualizar las estadísticas del jugador
-          // Podrías actualizar dailyScores o tener una estructura separada para estadísticas de jugadores
-          return state;
-        }),
+      registerGoal: (playerId) =>
+        set((state) => ({
+          ...state,
+          currentGoals: {
+            ...state.currentGoals,
+            [playerId]: (state.currentGoals[playerId] || 0) + 1,
+          },
+        })),
+
+      finalizeTriangular: async () => {
+        const state = get();
+        const teams = [
+          {
+            name: "Equipo 1",
+            score: state.dailyScores[0].points,
+            members: state.activeTeams.teamA.members,
+          },
+          {
+            name: "Equipo 2",
+            score: state.dailyScores[1].points,
+            members: state.activeTeams.teamB.members,
+          },
+          {
+            name: "Equipo 3",
+            score: state.dailyScores[2].points,
+            members: state.activeTeams.waiting.members,
+          },
+        ].sort((a, b) => b.score - a.score);
+
+        const result: TriangularResult = {
+          date: new Date().toISOString(),
+          teams: {
+            first: {
+              players: teams[0].members.map((m) => Number(m.id)),
+              points: teams[0].score,
+            },
+            second: {
+              players: teams[1].members.map((m) => Number(m.id)),
+              points: teams[1].score,
+            },
+            third: {
+              players: teams[2].members.map((m) => Number(m.id)),
+              points: teams[2].score,
+            },
+          },
+          scorers: Object.fromEntries(
+            Object.entries(state.currentGoals).map(([id, goals]) => [
+              Number(id),
+              goals,
+            ])
+          ),
+        };
+
+        await postTriangularResult(result);
+        set((state) => ({
+          ...state,
+          currentGoals: {},
+          dailyScores: [
+            { name: "Equipo 1", points: 0, wins: 0, normalWins: 0, draws: 0 },
+            { name: "Equipo 2", points: 0, wins: 0, normalWins: 0, draws: 0 },
+            { name: "Equipo 3", points: 0, wins: 0, normalWins: 0, draws: 0 },
+          ],
+          scores: {
+            teamA: 0,
+            teamB: 0,
+          },
+          isActive: false,
+          timer: {
+            ...state.timer,
+            endTime: null,
+          },
+        }));
+      },
     }),
 
     {
@@ -314,6 +384,7 @@ export const useGameStore = create<GameStore>()(
         isActive: state.isActive,
         timer: state.timer,
         teamBuilder: state.teamBuilder,
+        currentGoals: state.currentGoals,
       }),
     }
   )

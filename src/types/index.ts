@@ -43,6 +43,7 @@ export interface GameState {
     teamB: GameTeam;
     waiting: GameTeam;
   };
+  currentGoals: GoalsTracking;
 }
 export interface TeamMember {
   id: string;
@@ -92,4 +93,30 @@ export interface GoalScorerModalProps {
   players: { id: string; name: string }[];
   onClose: () => void;
   onSelect: (playerId: string) => void;
+}
+
+export interface TriangularResult {
+  id?: string;
+  date: string;
+  teams: {
+    first: {
+      players: number[];
+      points: number;
+    };
+    second: {
+      players: number[];
+      points: number;
+    };
+    third: {
+      players: number[];
+      points: number;
+    };
+  };
+  scorers: {
+    [playerId: number]: number;
+  };
+}
+
+export interface GoalsTracking {
+  [playerId: string]: number;
 }

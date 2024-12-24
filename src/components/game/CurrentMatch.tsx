@@ -6,6 +6,7 @@ import { ScoreBoard } from "./ScoreBoard";
 import { DailyScoreTable } from "./DailyScoreTable";
 import { useRef, useState } from "react";
 import { GoalScorerModal } from "./GoalScorerModal";
+import { DailyScorersTable } from "./DailyScorersTable";
 
 export function CurrentMatch() {
   const {
@@ -20,6 +21,8 @@ export function CurrentMatch() {
     setIsActive,
     startTimer,
     stopTimer,
+    registerGoal,
+    finalizeTriangular,
   } = useGameStore();
 
   const handleStartStop = () => {
@@ -61,10 +64,8 @@ export function CurrentMatch() {
     const currentScore = scores[`team${team}`];
     const newScore = currentScore + 1;
     updateScore(team, newScore);
-    console.log("gol de", playerId, "para el equipo", team);
 
-    // Aquí registraremos el gol del jugador cuando implementemos la función en el store
-    // registerGoal(playerId, team);
+    registerGoal(playerId);
 
     if (newScore === 2) {
       updateDailyScore(activeTeams[`team${team}`].name, "win");
@@ -75,6 +76,16 @@ export function CurrentMatch() {
 
     setModalOpen(false);
     setSelectedTeam(null);
+  };
+
+  const handleFinishTriangular = async () => {
+    try {
+      await finalizeTriangular();
+      alert("Triangular finalizado correctamente!");
+    } catch (error) {
+      console.error("Error al finalizar el triangular:", error);
+      alert("Error al finalizar el triangular");
+    }
   };
 
   return (
@@ -139,14 +150,13 @@ export function CurrentMatch() {
         <DailyScoreTable scores={dailyScores} />
       </div>
 
+      <div className="mt-8">
+        <h2 className="text-xl font-bold mb-4">Goleadores del día</h2>
+        <DailyScorersTable />
+      </div>
+
       <button
-        onClick={() => {
-          const matchData = {
-            date: new Date(),
-            scores: dailyScores,
-          };
-          console.log("Datos a enviar:", matchData);
-        }}
+        onClick={handleFinishTriangular}
         className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700"
       >
         Finalizar Triangular
