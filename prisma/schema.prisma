@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Player {
+  id         String       @id @default(cuid())
+  name       String
+  matches    Int         @default(0)  // Total de partidos jugados
+  wins       Int         @default(0)  // Victorias totales
+  draws      Int         @default(0)  // Empates totales
+  losses     Int         @default(0)  // Derrotas totales
+  goals      Int         @default(0)  // Goles totales
+  triangulars PlayerTriangular[]
+}
+
+model Triangular {
+  id        String    @id @default(cuid())
+  date      DateTime  @default(now())
+  players   PlayerTriangular[]
+  teams     TeamResult[]
+  champion  String    // Nombre del equipo campeón ("Equipo 1", "Equipo 2", "Equipo 3")
+}
+
+model PlayerTriangular {
+  id           String     @id @default(cuid())
+  player       Player     @relation(fields: [playerId], references: [id])
+  playerId     String
+  triangular   Triangular @relation(fields: [triangularId], references: [id])
+  triangularId String
+  team         String     // "Equipo 1", "Equipo 2", "Equipo 3"
+  goals        Int       @default(0)
+  wins         Int       @default(0)
+  normalWins   Int       @default(0)
+  draws        Int       @default(0)
+  points       Int       @default(0)
+  
+  @@unique([triangularId, playerId])
+}
+
+model TeamResult {
+  id           String     @id @default(cuid())
+  triangular   Triangular @relation(fields: [triangularId], references: [id])
+  triangularId String
+  teamName     String     // "Equipo 1", "Equipo 2", "Equipo 3"
+  points       Int       @default(0)
+  wins         Int       @default(0)
+  normalWins   Int       @default(0)
+  draws        Int       @default(0)
+  position     Int       // 1, 2, 3
+
+  @@unique([triangularId, teamName])
+}

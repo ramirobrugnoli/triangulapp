@@ -1,11 +1,13 @@
 // src/components/navigation/NavBar.tsx
 "use client";
 
+import { useGameStore } from "@/store/gameStore";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 export function NavBar() {
   const pathname = usePathname();
+  const { activeTeams } = useGameStore();
 
   return (
     <nav className="fixed bottom-0 w-full bg-gray-900 p-4">
@@ -52,28 +54,29 @@ export function NavBar() {
           </svg>
           <span className="text-xs mt-1">Armador</span>
         </Link>
-
-        <Link
-          href="/anotador"
-          className={`flex flex-col items-center ${
-            pathname === "/anotador" ? "text-green-500" : "text-gray-400"
-          }`}
-        >
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        {activeTeams?.waiting?.members && (
+          <Link
+            href="/anotador"
+            className={`flex flex-col items-center ${
+              pathname === "/anotador" ? "text-green-500" : "text-gray-400"
+            }`}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-            />
-          </svg>
-          <span className="text-xs mt-1">Anotador</span>
-        </Link>
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+            <span className="text-xs mt-1">Anotador</span>
+          </Link>
+        )}
 
         <Link
           href="/jugadores"
