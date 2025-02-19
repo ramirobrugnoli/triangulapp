@@ -1,10 +1,5 @@
 // types/prisma.ts
-import type {
-  Triangular,
-  TeamResult,
-  PlayerTriangular,
-  Player,
-} from "@prisma/client";
+import type { Triangular, TeamResult, PlayerTriangular } from "@prisma/client";
 import type { Team } from "./index";
 
 export interface PrismaTriangularWithRelations extends Triangular {
