@@ -8,7 +8,7 @@ import {
   TeamScore,
   TriangularResult,
 } from "@/types";
-import { postTriangularResult } from "@/lib/api";
+import { api } from "@/lib/api";
 
 interface GameStore extends GameState {
   // Funciones de actualización de score
@@ -332,16 +332,28 @@ export const useGameStore = create<GameStore>()(
           date: new Date().toISOString(),
           teams: {
             first: {
-              players: teams[0].members.map((m) => Number(m.id)),
+              name: teams[0].name as Team,
+              players: teams[0].members.map((m) => m.id),
               points: teams[0].score,
+              wins: state.dailyScores[0].wins,
+              normalWins: state.dailyScores[0].normalWins,
+              draws: state.dailyScores[0].draws,
             },
             second: {
-              players: teams[1].members.map((m) => Number(m.id)),
+              name: teams[1].name as Team,
+              players: teams[1].members.map((m) => m.id),
               points: teams[1].score,
+              wins: state.dailyScores[1].wins,
+              normalWins: state.dailyScores[1].normalWins,
+              draws: state.dailyScores[1].draws,
             },
             third: {
-              players: teams[2].members.map((m) => Number(m.id)),
+              name: teams[2].name as Team,
+              players: teams[2].members.map((m) => m.id),
               points: teams[2].score,
+              wins: state.dailyScores[2].wins,
+              normalWins: state.dailyScores[2].normalWins,
+              draws: state.dailyScores[2].draws,
             },
           },
           scorers: Object.fromEntries(
@@ -352,7 +364,7 @@ export const useGameStore = create<GameStore>()(
           ),
         };
 
-        await postTriangularResult(result);
+        await api.triangular.postTriangularResult(result);
         set((state) => ({
           ...state,
           currentGoals: {},

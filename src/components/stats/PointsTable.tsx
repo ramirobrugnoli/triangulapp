@@ -2,7 +2,8 @@
 
 import { Player } from "@/types";
 import { useEffect, useState } from "react";
-import { playerService } from "@/lib/api";
+
+import { api } from "@/lib/api";
 
 export function PointsTable() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -11,7 +12,8 @@ export function PointsTable() {
   useEffect(() => {
     const fetchPlayers = async () => {
       try {
-        const data = await playerService.getAllPlayers();
+        const data = await api.players.getAllPlayers();
+        console.log("data del fetch:", data);
         setPlayers(data);
       } catch (error) {
         console.error("Error:", error);
@@ -22,6 +24,8 @@ export function PointsTable() {
 
     fetchPlayers();
   }, []);
+
+  console.log("players:", players);
 
   if (loading) {
     return (

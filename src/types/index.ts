@@ -67,6 +67,7 @@ export interface GameState {
 
 // Interfaces para la API y Backend
 export interface TriangularResult {
+  date: string;
   teams: {
     first: TeamResult;
     second: TeamResult;

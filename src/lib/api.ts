@@ -1,14 +1,20 @@
-import { Player } from "@/types";
-import { TriangularResult } from "@/types";
+import { Player, TriangularResult } from "@/types";
 
-const API_URL = "https://6768cb80cbf3d7cefd38b097.mockapi.io/api/v1";
+const API_BASE = "/api";
 
 export const playerService = {
   async getAllPlayers(): Promise<Player[]> {
     try {
-      const response = await fetch(`${API_URL}/jugadores`);
-      if (!response.ok) throw new Error("Network response was not ok");
-      return response.json();
+      const response = await fetch("/api/players");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Error fetching players");
+      }
+
+      const data = await response.json();
+      console.log("API Response:", data);
+
+      return data;
     } catch (error) {
       console.error("Error fetching players:", error);
       throw error;
@@ -16,20 +22,41 @@ export const playerService = {
   },
 };
 
-export const postTriangularResult = async (
-  result: TriangularResult
-): Promise<void> => {
-  try {
-    const response = await fetch(`${API_URL}/resultadoTriangular`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(result),
-    });
-    if (!response.ok) throw new Error("Network response was not ok");
-  } catch (error) {
-    console.error("Error posting triangular result:", error);
-    throw error;
-  }
+export const triangularService = {
+  async postTriangularResult(result: TriangularResult): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE}/triangular`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(result),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Error al guardar el triangular");
+      }
+    } catch (error) {
+      console.error("Error posting triangular result:", error);
+      throw error;
+    }
+  },
+
+  async getTriangularHistory() {
+    try {
+      const response = await fetch(`${API_BASE}/triangular/history`);
+      if (!response.ok) throw new Error("Network response was not ok");
+      return response.json();
+    } catch (error) {
+      console.error("Error fetching triangular history:", error);
+      throw error;
+    }
+  },
+};
+
+// Exportamos un objeto que agrupa todos los servicios
+export const api = {
+  players: playerService,
+  triangular: triangularService,
 };
