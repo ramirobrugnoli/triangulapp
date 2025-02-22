@@ -1,21 +1,8 @@
+// app/api/players/route.ts
 import { prisma } from "../../../lib/prisma";
 import { NextResponse } from "next/server";
 
-interface Player {
-  id: string;
-  name: string;
-  matches: number;
-  goals: number;
-  wins: number;
-  draws: number;
-  losses: number;
-}
-
-/* interface RequestBody {
-  name: string;
-} */
-
-export async function GET(): Promise<Player[] | NextResponse> {
+export async function GET(): Promise<Response> {
   try {
     const players = await prisma.player.findMany();
 
@@ -43,7 +30,7 @@ export async function GET(): Promise<Player[] | NextResponse> {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<Response> {
   try {
     // En Next.js App Router necesitamos usar request.json() para obtener el body
     const { name } = await request.json();
