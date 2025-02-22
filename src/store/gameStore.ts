@@ -310,61 +310,71 @@ export const useGameStore = create<GameStore>()(
 
       finalizeTriangular: async () => {
         const state = get();
-        const teams = [
+
+        // Obtener los datos de los equipos
+        const teamsData = [
           {
+            index: 0,
             name: "Equipo 1",
             score: state.dailyScores[0].points,
             members: state.activeTeams.teamA.members,
+            stats: state.dailyScores[0],
           },
           {
+            index: 1,
             name: "Equipo 2",
             score: state.dailyScores[1].points,
             members: state.activeTeams.teamB.members,
+            stats: state.dailyScores[1],
           },
           {
+            index: 2,
             name: "Equipo 3",
             score: state.dailyScores[2].points,
             members: state.activeTeams.waiting.members,
+            stats: state.dailyScores[2],
           },
         ].sort((a, b) => b.score - a.score);
 
+        // Crear el resultado del triangular
         const result: TriangularResult = {
           date: new Date().toISOString(),
           teams: {
             first: {
-              name: teams[0].name as Team,
-              players: teams[0].members.map((m) => m.id),
-              points: teams[0].score,
-              wins: state.dailyScores[0].wins,
-              normalWins: state.dailyScores[0].normalWins,
-              draws: state.dailyScores[0].draws,
+              name: teamsData[0].name as Team,
+              players: teamsData[0].members.map((m) => m.id),
+              points: teamsData[0].score,
+              wins: teamsData[0].stats.wins,
+              normalWins: teamsData[0].stats.normalWins,
+              draws: teamsData[0].stats.draws,
             },
             second: {
-              name: teams[1].name as Team,
-              players: teams[1].members.map((m) => m.id),
-              points: teams[1].score,
-              wins: state.dailyScores[1].wins,
-              normalWins: state.dailyScores[1].normalWins,
-              draws: state.dailyScores[1].draws,
+              name: teamsData[1].name as Team,
+              players: teamsData[1].members.map((m) => m.id),
+              points: teamsData[1].score,
+              wins: teamsData[1].stats.wins,
+              normalWins: teamsData[1].stats.normalWins,
+              draws: teamsData[1].stats.draws,
             },
             third: {
-              name: teams[2].name as Team,
-              players: teams[2].members.map((m) => m.id),
-              points: teams[2].score,
-              wins: state.dailyScores[2].wins,
-              normalWins: state.dailyScores[2].normalWins,
-              draws: state.dailyScores[2].draws,
+              name: teamsData[2].name as Team,
+              players: teamsData[2].members.map((m) => m.id),
+              points: teamsData[2].score,
+              wins: teamsData[2].stats.wins,
+              normalWins: teamsData[2].stats.normalWins,
+              draws: teamsData[2].stats.draws,
             },
           },
-          scorers: Object.fromEntries(
-            Object.entries(state.currentGoals).map(([id, goals]) => [
-              Number(id),
-              goals,
-            ])
-          ),
+          // Mantener los IDs como strings, sin convertir a Number
+          scorers: state.currentGoals,
         };
 
+        console.log("Enviando resultado del triangular:", result);
+
+        // Enviar el resultado al servidor
         await api.triangular.postTriangularResult(result);
+
+        // Resetear el estado
         set((state) => ({
           ...state,
           currentGoals: {},

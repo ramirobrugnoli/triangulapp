@@ -1,9 +1,9 @@
 "use client";
 
-import { Player } from "@/types";
+import { Player } from "@prisma/client";
 import { useEffect, useState } from "react";
-
-import { api } from "@/lib/api";
+import { api } from "../../lib/api";
+import React from "react";
 
 export function PointsTable() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -14,7 +14,15 @@ export function PointsTable() {
       try {
         const data = await api.players.getAllPlayers();
         console.log("data del fetch:", data);
-        setPlayers(data);
+        const formattedData = data.map((player) => ({
+          ...player,
+          matches: player.stats.matches || 0,
+          wins: player.stats.wins || 0,
+          draws: player.stats.draws || 0,
+          losses: player.stats.losses || 0,
+          goals: player.stats.goals || 0,
+        }));
+        setPlayers(formattedData);
       } catch (error) {
         console.error("Error:", error);
       } finally {
@@ -36,12 +44,10 @@ export function PointsTable() {
   }
 
   const sortedByPoints = [...players].sort(
-    (a, b) => b.stats.points - a.stats.points
+    (a, b) => b.wins * 3 + b.draws - (a.wins * 3 + a.draws)
   );
 
-  const sortedByGoals = [...players].sort(
-    (a, b) => b.stats.goals - a.stats.goals
-  );
+  const sortedByGoals = [...players].sort((a, b) => b.goals - a.goals);
 
   return (
     <div className="space-y-8">
@@ -78,19 +84,19 @@ export function PointsTable() {
                     {player.name}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {player.stats.matches}
+                    {player.matches}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {player.stats.wins}
+                    {player.wins}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {player.stats.draws}
+                    {player.draws}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {player.stats.losses}
+                    {player.losses}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {player.stats.points}
+                    {player.wins * 3 + player.draws}
                   </td>
                 </tr>
               ))}
@@ -123,12 +129,10 @@ export function PointsTable() {
                     {player.name}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {player.stats.goals}
+                    {player.goals}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {(player.stats.goals / (player.stats.matches || 1)).toFixed(
-                      2
-                    )}
+                    {(player.goals / (player.matches || 1)).toFixed(2)}
                   </td>
                 </tr>
               ))}

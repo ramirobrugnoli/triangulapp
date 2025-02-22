@@ -1,8 +1,7 @@
-// lib/services/triangular.ts
 import { prisma } from "../prisma";
-import type { TriangularResult, TriangularHistory } from "../../types";
-import type { PrismaTriangularWithRelations } from "../../types/prisma";
-import { mapTriangularToHistory } from "../../types/prisma";
+import type { TriangularResult, TriangularHistory } from "@/types";
+import type { PrismaTriangularWithRelations } from "@/types/prisma";
+import { mapTriangularToHistory } from "@/types/prisma";
 import type { PrismaClient } from "@prisma/client";
 
 export const triangularService = {
@@ -55,50 +54,22 @@ export const triangularService = {
         });
 
         // Registrar participación y goles de jugadores
-        interface PlayerInfo {
-          id: string;
-          team: string;
-          teamResult: {
-            name: string;
-            points: number;
-            wins: number;
-            normalWins: number;
-            draws: number;
-            players: string[];
-          };
-        }
-
-        interface TeamResult {
-          name: string;
-          points: number;
-          wins: number;
-          normalWins: number;
-          draws: number;
-          players: string[];
-        }
-
-        const allPlayers: PlayerInfo[] = [
-          ...result.teams.first.players.map(
-            (id): PlayerInfo => ({
-              id,
-              team: result.teams.first.name,
-              teamResult: result.teams.first as TeamResult,
-            })
-          ),
-          ...result.teams.second.players.map(
-            (id): PlayerInfo => ({
-              id,
-              team: result.teams.second.name,
-              teamResult: result.teams.second as TeamResult,
-            })
-          ),
-          ...result.teams.third.players.map(
-            (id): PlayerInfo => ({
-              id,
-              team: result.teams.third.name,
-              teamResult: result.teams.third as TeamResult,
-            })
-          ),
+        const allPlayers = [
+          ...result.teams.first.players.map((id) => ({
+            id,
+            team: result.teams.first.name,
+            teamResult: result.teams.first,
+          })),
+          ...result.teams.second.players.map((id) => ({
+            id,
+            team: result.teams.second.name,
+            teamResult: result.teams.second,
+          })),
+          ...result.teams.third.players.map((id) => ({
+            id,
+            team: result.teams.third.name,
+            teamResult: result.teams.third,
+          })),
         ];
 
         for (const { id: playerId, team, teamResult } of allPlayers) {
