@@ -10,19 +10,17 @@ interface CreatePlayerProps {
 const CreatePlayer = ({ onPlayerAdded }: CreatePlayerProps) => {
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState({ text: "", type: "" });
-  const notify = () => toast("Jugador creado!");
+  const notify = (message: string) => toast(message);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!name.trim()) {
-      setMessage({ text: "El nombre es requerido", type: "error" });
+      notify("El nombre es requerido");
       return;
     }
 
     setIsLoading(true);
-    setMessage({ text: "", type: "" });
 
     try {
       const response = await fetch("/api/players", {
@@ -36,9 +34,8 @@ const CreatePlayer = ({ onPlayerAdded }: CreatePlayerProps) => {
       if (!response.ok) {
         throw new Error("Error al crear el jugador");
       }
-
+      notify(`Jugador ${name} agregado correctamente ⚽`);
       setName("");
-      notify();
 
       // Refrescar la lista de jugadores
       if (onPlayerAdded) {
@@ -46,7 +43,7 @@ const CreatePlayer = ({ onPlayerAdded }: CreatePlayerProps) => {
       }
     } catch (error) {
       console.error("Error:", error);
-      setMessage({ text: "Error al crear el jugador", type: "error" });
+      notify("Error al crear el jugador");
     } finally {
       setIsLoading(false);
     }
