@@ -53,9 +53,51 @@ export function TeamsBuilder() {
     fetchPlayers();
   }, []);
 
+  //Función para encontrar el equipo del jugador seleccionado
+  const findPlayerTeam = (playerId: string) : string => {
+    for ( const teamKey of Object.keys(teams)){
+      if (teams[teamKey].some(player  => player.id === playerId)) {
+        return teamKey;
+      }
+    }
+    return '';
+  }
+
   // Función para manejar la selección de jugador
   const handlePlayerSelect = (player: Player) => {
-    setSelectedPlayer(player);
+    
+    if(selectedPlayer){
+      if(player.id === selectedPlayer.id){
+        setSelectedPlayer(null);
+        return;
+      }
+
+      const firstPlayerTeam = findPlayerTeam(selectedPlayer.id);
+      const secondPlayerTeam = findPlayerTeam(player.id);
+      
+      if(firstPlayerTeam === secondPlayerTeam){
+        setSelectedPlayer(null);
+        return;
+      }
+
+      setTeams(prev =>{
+        
+        const newTeams = {...prev};
+
+      //Eliminar jugador del equipo actual
+        newTeams[firstPlayerTeam] = newTeams[firstPlayerTeam].filter(p => p.id !== selectedPlayer.id);
+        newTeams[secondPlayerTeam] = newTeams[secondPlayerTeam].filter(p => p.id !== player.id);
+      
+        //Intercambiar equipos de jugadores
+        newTeams[secondPlayerTeam].push({...selectedPlayer});
+        newTeams[firstPlayerTeam].push({...player});
+
+        return newTeams;
+      });
+      setSelectedPlayer(null);
+    }else{
+      setSelectedPlayer(player)
+    }
   };
 
   // Función para asignar jugador a un equipo
@@ -74,9 +116,9 @@ export function TeamsBuilder() {
 
       return newTeams;
     });
-
     setSelectedPlayer(null);
   };
+
 
   const handleConfirmTeams = async () => {
     if (
