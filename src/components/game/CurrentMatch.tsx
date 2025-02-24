@@ -7,6 +7,13 @@ import { DailyScoreTable } from "./DailyScoreTable";
 import { useRef, useState } from "react";
 import { GoalScorerModal } from "./GoalScorerModal";
 import { DailyScorersTable } from "./DailyScorersTable";
+import { toast, ToastContainer } from "react-toastify";
+
+function GoalIndicator({ goals }: { goals: number }) {
+  if (goals === 0) return null;
+  if (goals === 1) return <span className="ml-2">⚽</span>;
+  return <span className="ml-2"> ⚽ x{goals}</span>;
+}
 
 export function CurrentMatch() {
   const {
@@ -23,6 +30,7 @@ export function CurrentMatch() {
     stopTimer,
     registerGoal,
     finalizeTriangular,
+    currentGoals,
   } = useGameStore();
 
   const handleStartStop = () => {
@@ -38,6 +46,7 @@ export function CurrentMatch() {
   const timerRef = useRef<{ resetTimer: () => void } | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<"A" | "B" | null>(null);
+  const notify = (message: string) => toast(message);
 
   const handleTimeUp = () => {
     if (scores.teamA > scores.teamB) {
@@ -81,25 +90,31 @@ export function CurrentMatch() {
   const handleFinishTriangular = async () => {
     try {
       await finalizeTriangular();
-      alert("Triangular finalizado correctamente!");
+      notify("Triangular finalizado correctamente!");
     } catch (error) {
       console.error("Error al finalizar el triangular:", error);
-      alert("Error al finalizar el triangular");
+      notify("Error al finalizar el triangular");
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="bg-gray-900 p-4 rounded-lg text-center">
-        <h2 className="text-xl mb-2">Afuera</h2>
-        <div className="text-green-500 font-bold">
-          {activeTeams.waiting.name}
-        </div>
-        <div className="text-sm text-gray-400">
-          {activeTeams.waiting.members.map((member) => member.name).join(", ")}
-        </div>
-      </div>
-
+    <>
+      <ToastContainer
+        autoClose={3000}
+        position="top-right"
+        theme="dark"
+        closeOnClick={true}
+      />
+      <button
+        onClick={handleStartStop}
+        className={`w-full py-3 rounded-lg ${
+          isActive
+            ? "bg-red-600 hover:bg-red-700"
+            : "bg-green-600 hover:bg-green-700"
+        }`}
+      >
+        {isActive ? "Pausar Partido" : "Iniciar Partido"}
+      </button>
       <GameTimer onTimeUp={handleTimeUp} isActive={isActive} />
 
       <ScoreBoard
@@ -119,48 +134,68 @@ export function CurrentMatch() {
         onSelect={handleGoalConfirm}
       />
 
-      <div className="grid grid-cols-2 gap-4 text-sm text-gray-400">
-        <div>
-          <div className="font-bold mb-1">{activeTeams.teamA.name}</div>
-          <div>
-            {activeTeams.teamA.members.map((member) => member.name).join(", ")}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-gray-900 p-4 rounded-lg border border-gray-700">
+          <div className="font-bold mb-2 text-lg text-green-500">
+            {activeTeams.teamA.name}
+          </div>
+          <div className="text-sm text-gray-400 leading-relaxed space-y-1">
+            {activeTeams.teamA.members.map((member) => (
+              <div key={member.id} className="flex items-center">
+                <span>{member.name}</span>
+                <GoalIndicator goals={currentGoals[member.id] || 0} />
+              </div>
+            ))}
           </div>
         </div>
-        <div>
-          <div className="font-bold mb-1">{activeTeams.teamB.name}</div>
-          <div>
-            {activeTeams.teamB.members.map((member) => member.name).join(", ")}
+        <div className="bg-gray-900 p-4 rounded-lg border border-gray-700">
+          <div className="font-bold mb-2 text-lg text-green-500">
+            {activeTeams.teamB.name}
+          </div>
+          <div className="text-sm text-gray-400 leading-relaxed space-y-1">
+            {activeTeams.teamB.members.map((member) => (
+              <div key={member.id} className="flex items-center">
+                <span>{member.name}</span>
+                <GoalIndicator goals={currentGoals[member.id] || 0} />
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      <button
-        onClick={handleStartStop}
-        className={`w-full py-3 rounded-lg ${
-          isActive
-            ? "bg-red-600 hover:bg-red-700"
-            : "bg-green-600 hover:bg-green-700"
-        }`}
-      >
-        {isActive ? "Pausar Partido" : "Iniciar Partido"}
-      </button>
+      <div className="space-y-6">
+        <div className="bg-gray-900 p-4 rounded-lg text-center">
+          <h2 className="text-xl mb-2">Afuera</h2>
+          <div className="text-green-500 font-bold">
+            {activeTeams.waiting.name}
+          </div>
+          <div className="text-sm text-gray-400 mt-2 flex flex-col items-center space-y-1">
+            {activeTeams.waiting.members.map((member) => (
+              <div key={member.id} className="flex items-center">
+                <span>{member.name}</span>
+                <GoalIndicator goals={currentGoals[member.id] || 0} />
+              </div>
+            ))}
+          </div>
+        </div>
 
-      <div className="mt-8">
-        <h2 className="text-xl font-bold mb-4">Puntajes del día</h2>
-        <DailyScoreTable scores={dailyScores} />
+        <div className="mt-8">
+          <h2 className="text-xl font-bold mb-4">Puntajes del día</h2>
+          <DailyScoreTable scores={dailyScores} />
+        </div>
+
+        <div className="mt-8">
+          <h2 className="text-xl font-bold mb-4">Goleadores del día</h2>
+          <DailyScorersTable />
+        </div>
+
+        <button
+          onClick={handleFinishTriangular}
+          className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700"
+        >
+          Finalizar Triangular
+        </button>
       </div>
-
-      <div className="mt-8">
-        <h2 className="text-xl font-bold mb-4">Goleadores del día</h2>
-        <DailyScorersTable />
-      </div>
-
-      <button
-        onClick={handleFinishTriangular}
-        className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700"
-      >
-        Finalizar Triangular
-      </button>
-    </div>
+    </>
   );
 }

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { playerService } from "@/lib/api";
 import { useGameStore } from "@/store/gameStore";
 import { useRouter } from "next/navigation";
+import { toast, ToastContainer } from "react-toastify";
 
 interface TeamBuilderState {
   available: Player[];
@@ -35,6 +36,7 @@ export function TeamsBuilder() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { setTeams: setGlobalTeams } = useGameStore();
   const router = useRouter();
+  const notify = (message: string) => toast(message);
 
   useEffect(() => {
     const fetchPlayers = async () => {
@@ -82,7 +84,7 @@ export function TeamsBuilder() {
       teams.team2.length === 0 ||
       teams.team3.length === 0
     ) {
-      alert("Todos los equipos deben tener al menos un jugador");
+      notify("Todos los equipos deben tener al menos un jugador");
       return;
     }
 
@@ -112,12 +114,12 @@ export function TeamsBuilder() {
         },
       });
 
-      alert("Equipos guardados correctamente");
+      notify("Equipos guardados correctamente");
       setTimeout(() => {
         router.push("/anotador");
       }, 1000);
     } catch (error) {
-      alert("Error al guardar los equipos");
+      notify("Error al guardar los equipos");
       console.error(error);
     } finally {
       setIsSubmitting(false);
@@ -184,20 +186,27 @@ export function TeamsBuilder() {
   );
 
   return (
-    <div className="space-y-6">
-      {renderPlayerList(teams.available, "Jugadores Disponibles")}
+    <>
+      <ToastContainer
+        autoClose={3000}
+        position="top-right"
+        theme="dark"
+        closeOnClick={true}
+      />
+      <div className="space-y-6">
+        {renderPlayerList(teams.available, "Jugadores Disponibles")}
 
-      <div className="grid grid-cols-3 gap-4">
-        {["team1", "team2", "team3"].map((teamId, index) => (
-          <div key={teamId} className="flex flex-col">
-            <div
-              onClick={
-                selectedPlayer
-                  ? () =>
-                      handleTeamAssign(teamId as "team1" | "team2" | "team3")
-                  : undefined
-              }
-              className={`
+        <div className="grid grid-cols-3 gap-4">
+          {["team1", "team2", "team3"].map((teamId, index) => (
+            <div key={teamId} className="flex flex-col">
+              <div
+                onClick={
+                  selectedPlayer
+                    ? () =>
+                        handleTeamAssign(teamId as "team1" | "team2" | "team3")
+                    : undefined
+                }
+                className={`
         bg-gray-900 rounded-lg p-4
         ${
           selectedPlayer
@@ -206,17 +215,17 @@ export function TeamsBuilder() {
         }
         transition-all duration-200
       `}
-            >
-              <h3 className="text-lg font-bold mb-4">Equipo {index + 1}</h3>
-              <div className="space-y-2">
-                {teams[teamId].map((player) => (
-                  <button
-                    key={player.id}
-                    onClick={(e) => {
-                      e.stopPropagation(); // Evita que el click llegue al contenedor padre
-                      handlePlayerSelect(player);
-                    }}
-                    className={`
+              >
+                <h3 className="text-lg font-bold mb-4">Equipo {index + 1}</h3>
+                <div className="space-y-2">
+                  {teams[teamId].map((player) => (
+                    <button
+                      key={player.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePlayerSelect(player);
+                      }}
+                      className={`
               w-full p-2 rounded-lg text-sm
               ${
                 selectedPlayer?.id === player.id
@@ -224,33 +233,34 @@ export function TeamsBuilder() {
                   : "bg-gray-700 hover:bg-gray-600"
               }
             `}
-                  >
-                    {player.name}
-                  </button>
-                ))}
+                    >
+                      {player.name}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      <button
-        onClick={handleConfirmTeams}
-        disabled={isSubmitting}
-        className={`
+        <button
+          onClick={handleConfirmTeams}
+          disabled={isSubmitting}
+          className={`
          w-full py-3 rounded-lg
          ${isSubmitting ? "bg-gray-600" : "bg-green-600 hover:bg-green-700"}
        `}
-      >
-        {isSubmitting ? (
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
-            Guardando...
-          </div>
-        ) : (
-          "Confirmar Equipos"
-        )}
-      </button>
-    </div>
+        >
+          {isSubmitting ? (
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
+              Guardando...
+            </div>
+          ) : (
+            "Confirmar Equipos"
+          )}
+        </button>
+      </div>
+    </>
   );
 }
