@@ -42,17 +42,15 @@ export function PointsTable({ players }: PointsTableProps) {
                   Jugador
                 </th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  PJ
+                  TJ
                 </th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  G
+                  PG
                 </th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  E
+                  PE
                 </th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  P
-                </th>
+
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                   Pts
                 </th>
@@ -72,9 +70,6 @@ export function PointsTable({ players }: PointsTableProps) {
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
                     {player.stats.draws}
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {player.stats.losses}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
                     {player.stats.wins * 3 + player.stats.draws}
