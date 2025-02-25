@@ -12,7 +12,7 @@
     "seed": "node --loader ts-node/esm prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.3.1",
+    "@prisma/client": "^6.4.1",
     "clsx": "^2.1.1",
     "next": "15.1.2",
     "prisma": "^6.3.1",

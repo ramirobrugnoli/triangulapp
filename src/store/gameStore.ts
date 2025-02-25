@@ -83,6 +83,7 @@ const initialState: GameState = {
     team3: [],
   },
   currentGoals: {},
+  lastWinner: "",
 };
 
 export const useGameStore = create<GameStore>()(
@@ -111,6 +112,7 @@ export const useGameStore = create<GameStore>()(
         set((state) => {
           const { activeTeams } = state;
           let newActiveTeams;
+          let lastWinner = state.lastWinner;
 
           switch (winner) {
             case "A":
@@ -119,6 +121,7 @@ export const useGameStore = create<GameStore>()(
                 teamB: activeTeams.waiting,
                 waiting: activeTeams.teamB,
               };
+              lastWinner = "A";
               break;
             case "B":
               newActiveTeams = {
@@ -126,18 +129,37 @@ export const useGameStore = create<GameStore>()(
                 teamB: activeTeams.teamB,
                 waiting: activeTeams.teamA,
               };
+              lastWinner = "B";
               break;
             default:
-              newActiveTeams = {
-                teamA: activeTeams.waiting,
-                teamB: activeTeams.teamB,
-                waiting: activeTeams.teamA,
-              };
+              if (lastWinner === "A") {
+                //Si lastWinner es A, debe jugar teamB contra waiting
+                newActiveTeams = {
+                  teamA: activeTeams.waiting,
+                  teamB: activeTeams.teamB,
+                  waiting: activeTeams.teamA,
+                };
+              } else if (lastWinner === "B") {
+                //Si lastWinner es B, debe jugar teamA contra waiting
+                newActiveTeams = {
+                  teamA: activeTeams.teamA,
+                  teamB: activeTeams.waiting,
+                  waiting: activeTeams.teamB,
+                };
+              } else {
+                newActiveTeams = {
+                  teamA: activeTeams.waiting,
+                  teamB: activeTeams.teamB,
+                  waiting: activeTeams.teamA,
+                };
+              }
           }
+          console.log(newActiveTeams, activeTeams);
 
           return {
             ...state,
             activeTeams: newActiveTeams,
+            lastWinner: lastWinner,
           };
         }),
 
@@ -215,6 +237,7 @@ export const useGameStore = create<GameStore>()(
           timer: {
             ...state.timer,
             endTime: Date.now() + state.timer.MATCH_DURATION * 1000,
+            //endTime: Date.now() + state.timer.MATCH_DURATION + 6000,
           },
         })),
 
