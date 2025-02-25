@@ -1,53 +1,34 @@
-"use client";
+import { Player } from "@/types";
+import { useMemo } from "react";
 
-import { Player } from "@prisma/client";
-import { useEffect, useState } from "react";
-import { api } from "../../lib/api";
-import React from "react";
+interface PointsTableProps {
+  players: Player[];
+}
 
-export function PointsTable() {
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [loading, setLoading] = useState(true);
+export function PointsTable({ players }: PointsTableProps) {
+  // Usamos useMemo para ordenar los jugadores solo cuando cambian los datos
+  const sortedByPoints = useMemo(() => {
+    return [...players].sort((a, b) => {
+      const aPoints = a.stats.wins * 3 + a.stats.draws;
+      const bPoints = b.stats.wins * 3 + b.stats.draws;
+      return bPoints - aPoints;
+    });
+  }, [players]);
 
-  useEffect(() => {
-    const fetchPlayers = async () => {
-      try {
-        const data = await api.players.getAllPlayers();
-        console.log("data del fetch:", data);
-        const formattedData = data.map((player) => ({
-          ...player,
-          matches: player.stats.matches || 0,
-          wins: player.stats.wins || 0,
-          draws: player.stats.draws || 0,
-          losses: player.stats.losses || 0,
-          goals: player.stats.goals || 0,
-        }));
-        setPlayers(formattedData);
-      } catch (error) {
-        console.error("Error:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const sortedByGoals = useMemo(() => {
+    return [...players].sort((a, b) => b.stats.goals - a.stats.goals);
+  }, [players]);
 
-    fetchPlayers();
-  }, []);
-
-  console.log("players:", players);
-
-  if (loading) {
+  if (players.length === 0) {
     return (
-      <div className="flex justify-center items-center h-48">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+      <div className="bg-gray-900 p-4 rounded-lg">
+        <h2 className="text-xl font-bold mb-4">Tabla de Puntos</h2>
+        <p className="text-gray-400 text-center py-8">
+          No hay datos de jugadores disponibles
+        </p>
       </div>
     );
   }
-
-  const sortedByPoints = [...players].sort(
-    (a, b) => b.wins * 3 + b.draws - (a.wins * 3 + a.draws)
-  );
-
-  const sortedByGoals = [...players].sort((a, b) => b.goals - a.goals);
 
   return (
     <div className="space-y-8">
@@ -84,19 +65,19 @@ export function PointsTable() {
                     {player.name}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {player.matches}
+                    {player.stats.matches}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {player.wins}
+                    {player.stats.wins}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {player.draws}
+                    {player.stats.draws}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {player.losses}
+                    {player.stats.losses}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {player.wins * 3 + player.draws}
+                    {player.stats.wins * 3 + player.stats.draws}
                   </td>
                 </tr>
               ))}
@@ -129,10 +110,12 @@ export function PointsTable() {
                     {player.name}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {player.goals}
+                    {player.stats.goals}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {(player.goals / (player.matches || 1)).toFixed(2)}
+                    {(player.stats.goals / (player.stats.matches || 1)).toFixed(
+                      2
+                    )}
                   </td>
                 </tr>
               ))}

@@ -259,7 +259,7 @@ export function TeamsBuilder() {
         closeOnClick={true}
       />
       <div className="space-y-6">
-        {teams.available.length > 0 &&
+        {teams.available &&
           renderPlayerList(teams.available, "Jugadores Disponibles")}
 
         <div className="grid grid-cols-3 gap-4">
