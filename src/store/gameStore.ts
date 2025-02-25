@@ -86,6 +86,7 @@ const initialState: GameState = {
   },
   currentGoals: {},
   lastWinner: "",
+  lastDraw: "",
   selectedPlayers: [],
 };
 
@@ -116,6 +117,7 @@ export const useGameStore = create<GameStore>()(
           const { activeTeams } = state;
           let newActiveTeams;
           let lastWinner = state.lastWinner;
+          let lastDraw = state.lastDraw;
 
           switch (winner) {
             case "A":
@@ -125,6 +127,7 @@ export const useGameStore = create<GameStore>()(
                 waiting: activeTeams.teamB,
               };
               lastWinner = "A";
+              lastDraw = "";
               break;
             case "B":
               newActiveTeams = {
@@ -133,6 +136,7 @@ export const useGameStore = create<GameStore>()(
                 waiting: activeTeams.teamA,
               };
               lastWinner = "B";
+              lastDraw = "";
               break;
             default:
               if (lastWinner === "A") {
@@ -142,6 +146,8 @@ export const useGameStore = create<GameStore>()(
                   teamB: activeTeams.teamB,
                   waiting: activeTeams.teamA,
                 };
+                lastWinner = "";
+                lastDraw = "B";
               } else if (lastWinner === "B") {
                 //Si lastWinner es B, debe jugar teamA contra waiting
                 newActiveTeams = {
@@ -149,20 +155,43 @@ export const useGameStore = create<GameStore>()(
                   teamB: activeTeams.waiting,
                   waiting: activeTeams.teamB,
                 };
-              } else {
+                lastWinner = "";
+                lastDraw = "A";
+              } else if (lastDraw === "A") {
+                //Si empato el a en su segundo partido
                 newActiveTeams = {
                   teamA: activeTeams.waiting,
                   teamB: activeTeams.teamB,
                   waiting: activeTeams.teamA,
                 };
+                lastDraw = "B";
+                lastWinner = "";
+              } else if (lastDraw === "B") {
+                //Si empato el b en su segundo partido
+                newActiveTeams = {
+                  teamA: activeTeams.teamA,
+                  teamB: activeTeams.waiting,
+                  waiting: activeTeams.teamB,
+                };
+                lastDraw = "A";
+                lastWinner = "";
+              } else {
+                //Primer cambio, si nadie empato ni gano antes
+                newActiveTeams = {
+                  teamA: activeTeams.waiting,
+                  teamB: activeTeams.teamB,
+                  waiting: activeTeams.teamA,
+                };
+                lastDraw = "B";
+                lastWinner = "";
               }
           }
-          console.log(newActiveTeams, activeTeams);
 
           return {
             ...state,
             activeTeams: newActiveTeams,
             lastWinner: lastWinner,
+            lastDraw: lastDraw,
           };
         }),
 
