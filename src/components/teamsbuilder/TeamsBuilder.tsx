@@ -43,7 +43,7 @@ export function TeamsBuilder() {
       // Si no hay jugadores seleccionados, redirigir a la pantalla de selección
       notify("Debes seleccionar jugadores primero");
       setTimeout(() => {
-        router.push("/armador");
+        router.push("/jugadores");
       }, 1500);
       return;
     }
@@ -211,9 +211,17 @@ export function TeamsBuilder() {
 
   if (loading) {
     return (
-      <div className="flex justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500" />
-      </div>
+      <>
+        <ToastContainer
+          autoClose={3000}
+          position="top-right"
+          theme="dark"
+          closeOnClick={true}
+        />
+        <div className="flex justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500" />
+        </div>
+      </>
     );
   }
 
