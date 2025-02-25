@@ -63,6 +63,7 @@ export interface GameState {
     waiting: GameTeam;
   };
   currentGoals: GoalsTracking;
+  lastWinner: string;
 }
 
 // Interfaces para la API y Backend
