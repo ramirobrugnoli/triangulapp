@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Player } from "@/types";
 import CreatePlayer from "@/components/players/CreatePlayer";
+import { PlayerSelector } from "@/components/players/PlayerSelector";
 
 export default function PlayersPage() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -34,6 +35,12 @@ export default function PlayersPage() {
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-6 text-center">
+          Seleccionar Jugadores
+        </h1>
+        <PlayerSelector />
+      </div>
       <h1 className="text-2xl font-bold mb-6">Gestión de Jugadores</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

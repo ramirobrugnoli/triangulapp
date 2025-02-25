@@ -2,7 +2,6 @@
 
 import { Player } from "@/types";
 import { useEffect, useState } from "react";
-import { playerService } from "@/lib/api";
 import { useGameStore } from "@/store/gameStore";
 import { useRouter } from "next/navigation";
 import { toast, ToastContainer } from "react-toastify";
@@ -34,69 +33,71 @@ export function TeamsBuilder() {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { setTeams: setGlobalTeams } = useGameStore();
+  const { setTeams: setGlobalTeams, selectedPlayers } = useGameStore();
   const router = useRouter();
   const notify = (message: string) => toast(message);
 
   useEffect(() => {
-    const fetchPlayers = async () => {
-      try {
-        const data = await playerService.getAllPlayers();
-        setTeams((prev) => ({ ...prev, available: data }));
-      } catch (error) {
-        console.error("Error:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Usando los jugadores seleccionados previamente en lugar de cargarlos del servicio
+    if (selectedPlayers.length === 0) {
+      // Si no hay jugadores seleccionados, redirigir a la pantalla de selección
+      notify("Debes seleccionar jugadores primero");
+      setTimeout(() => {
+        router.push("/armador");
+      }, 1500);
+      return;
+    }
 
-    fetchPlayers();
-  }, []);
+    setTeams((prev) => ({ ...prev, available: selectedPlayers }));
+    setLoading(false);
+  }, [selectedPlayers, router]);
 
-  //Función para encontrar el equipo del jugador seleccionado
-  const findPlayerTeam = (playerId: string) : string => {
-    for ( const teamKey of Object.keys(teams)){
-      if (teams[teamKey].some(player  => player.id === playerId)) {
+  // Función para encontrar el equipo del jugador seleccionado
+  const findPlayerTeam = (playerId: string): string => {
+    for (const teamKey of Object.keys(teams)) {
+      if (teams[teamKey].some((player) => player.id === playerId)) {
         return teamKey;
       }
     }
-    return '';
-  }
+    return "";
+  };
 
   // Función para manejar la selección de jugador
   const handlePlayerSelect = (player: Player) => {
-    
-    if(selectedPlayer){
-      if(player.id === selectedPlayer.id){
+    if (selectedPlayer) {
+      if (player.id === selectedPlayer.id) {
         setSelectedPlayer(null);
         return;
       }
 
       const firstPlayerTeam = findPlayerTeam(selectedPlayer.id);
       const secondPlayerTeam = findPlayerTeam(player.id);
-      
-      if(firstPlayerTeam === secondPlayerTeam){
+
+      if (firstPlayerTeam === secondPlayerTeam) {
         setSelectedPlayer(null);
         return;
       }
 
-      setTeams(prev =>{
-        
-        const newTeams = {...prev};
+      setTeams((prev) => {
+        const newTeams = { ...prev };
 
-      //Eliminar jugador del equipo actual
-        newTeams[firstPlayerTeam] = newTeams[firstPlayerTeam].filter(p => p.id !== selectedPlayer.id);
-        newTeams[secondPlayerTeam] = newTeams[secondPlayerTeam].filter(p => p.id !== player.id);
-      
-        //Intercambiar equipos de jugadores
-        newTeams[secondPlayerTeam].push({...selectedPlayer});
-        newTeams[firstPlayerTeam].push({...player});
+        // Eliminar jugador del equipo actual
+        newTeams[firstPlayerTeam] = newTeams[firstPlayerTeam].filter(
+          (p) => p.id !== selectedPlayer.id
+        );
+        newTeams[secondPlayerTeam] = newTeams[secondPlayerTeam].filter(
+          (p) => p.id !== player.id
+        );
+
+        // Intercambiar equipos de jugadores
+        newTeams[secondPlayerTeam].push({ ...selectedPlayer });
+        newTeams[firstPlayerTeam].push({ ...player });
 
         return newTeams;
       });
       setSelectedPlayer(null);
-    }else{
-      setSelectedPlayer(player)
+    } else {
+      setSelectedPlayer(player);
     }
   };
 
@@ -118,7 +119,6 @@ export function TeamsBuilder() {
     });
     setSelectedPlayer(null);
   };
-
 
   const handleConfirmTeams = async () => {
     if (
@@ -176,13 +176,32 @@ export function TeamsBuilder() {
       ...teams.team3,
     ];
 
+    // Distribuir equitativamente los jugadores
     const shuffledPlayers = shuffleArray(allPlayers);
+    const playersPerTeam = Math.floor(shuffledPlayers.length / 3);
+    const remainder = shuffledPlayers.length % 3;
+
+    // Calcular cuántos jugadores va a tener cada equipo
+    let team1Count = playersPerTeam;
+    let team2Count = playersPerTeam;
+    const team3Count = playersPerTeam;
+
+    // Distribuir los jugadores extra (si hay)
+    if (remainder === 1) {
+      team1Count += 1;
+    } else if (remainder === 2) {
+      team1Count += 1;
+      team2Count += 1;
+    }
 
     setTeams({
-      team1: shuffledPlayers.slice(0, 5),
-      team2: shuffledPlayers.slice(5, 10),
-      team3: shuffledPlayers.slice(10, 15),
-      available: shuffledPlayers.slice(15),
+      team1: shuffledPlayers.slice(0, team1Count),
+      team2: shuffledPlayers.slice(team1Count, team1Count + team2Count),
+      team3: shuffledPlayers.slice(
+        team1Count + team2Count,
+        team1Count + team2Count + team3Count
+      ),
+      available: [], // Todos los jugadores están asignados
     });
   };
 
@@ -236,7 +255,8 @@ export function TeamsBuilder() {
         closeOnClick={true}
       />
       <div className="space-y-6">
-        {renderPlayerList(teams.available, "Jugadores Disponibles")}
+        {teams.available.length > 0 &&
+          renderPlayerList(teams.available, "Jugadores Disponibles")}
 
         <div className="grid grid-cols-3 gap-4">
           {["team1", "team2", "team3"].map((teamId, index) => (
@@ -249,14 +269,14 @@ export function TeamsBuilder() {
                     : undefined
                 }
                 className={`
-        bg-gray-900 rounded-lg p-4
-        ${
-          selectedPlayer
-            ? "cursor-pointer border-2 border-blue-500 hover:border-blue-400"
-            : "border-2 border-transparent"
-        }
-        transition-all duration-200
-      `}
+                  bg-gray-900 rounded-lg p-4
+                  ${
+                    selectedPlayer
+                      ? "cursor-pointer border-2 border-blue-500 hover:border-blue-400"
+                      : "border-2 border-transparent"
+                  }
+                  transition-all duration-200
+                `}
               >
                 <h3 className="text-lg font-bold mb-4">Equipo {index + 1}</h3>
                 <div className="space-y-2">
@@ -268,13 +288,13 @@ export function TeamsBuilder() {
                         handlePlayerSelect(player);
                       }}
                       className={`
-              w-full p-2 rounded-lg text-sm
-              ${
-                selectedPlayer?.id === player.id
-                  ? "bg-green-600"
-                  : "bg-gray-700 hover:bg-gray-600"
-              }
-            `}
+                        w-full p-2 rounded-lg text-sm
+                        ${
+                          selectedPlayer?.id === player.id
+                            ? "bg-green-600"
+                            : "bg-gray-700 hover:bg-gray-600"
+                        }
+                      `}
                     >
                       {player.name}
                     </button>
@@ -289,9 +309,9 @@ export function TeamsBuilder() {
           onClick={handleConfirmTeams}
           disabled={isSubmitting}
           className={`
-         w-full py-3 rounded-lg
-         ${isSubmitting ? "bg-gray-600" : "bg-green-600 hover:bg-green-700"}
-       `}
+            w-full py-3 rounded-lg
+            ${isSubmitting ? "bg-gray-600" : "bg-green-600 hover:bg-green-700"}
+          `}
         >
           {isSubmitting ? (
             <div className="flex items-center justify-center">
