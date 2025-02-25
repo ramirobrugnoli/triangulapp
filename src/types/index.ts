@@ -64,6 +64,7 @@ export interface GameState {
   };
   currentGoals: GoalsTracking;
   lastWinner: string;
+  lastDraw: string;
   selectedPlayers: Player[];
 }
 

@@ -106,6 +106,10 @@ export function TeamsBuilder() {
     if (!selectedPlayer) return;
 
     setTeams((prev) => {
+      if (prev[teamId].length === 5) {
+        return prev; // Retornar los equipos sin cambios
+      }
+
       // Remover jugador de su contenedor actual
       const newTeams = { ...prev };
       Object.keys(newTeams).forEach((key) => {
@@ -122,11 +126,11 @@ export function TeamsBuilder() {
 
   const handleConfirmTeams = async () => {
     if (
-      teams.team1.length === 0 ||
-      teams.team2.length === 0 ||
-      teams.team3.length === 0
+      teams.team1.length !== 5 ||
+      teams.team2.length !== 5 ||
+      teams.team3.length !== 5
     ) {
-      notify("Todos los equipos deben tener al menos un jugador");
+      notify("Todos los equipos deben tener 5 jugadores");
       return;
     }
 
