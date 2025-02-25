@@ -64,6 +64,7 @@ export interface GameState {
   };
   currentGoals: GoalsTracking;
   lastWinner: string;
+  selectedPlayers: Player[];
 }
 
 // Interfaces para la API y Backend

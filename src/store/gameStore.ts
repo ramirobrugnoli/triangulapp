@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import {
   GameState,
   GameTeam,
+  Player,
   Team,
   TeamBuilderState,
   TeamScore,
@@ -52,6 +53,7 @@ interface GameStore extends GameState {
 
   registerGoal: (playerId: string) => void;
   finalizeTriangular: () => Promise<void>;
+  updateAvailablePlayers: (players: Player[]) => void;
 }
 
 const MATCH_DURATION = 7 * 60;
@@ -84,6 +86,7 @@ const initialState: GameState = {
   },
   currentGoals: {},
   lastWinner: "",
+  selectedPlayers: [],
 };
 
 export const useGameStore = create<GameStore>()(
@@ -328,6 +331,18 @@ export const useGameStore = create<GameStore>()(
           currentGoals: {
             ...state.currentGoals,
             [playerId]: (state.currentGoals[playerId] || 0) + 1,
+          },
+        })),
+
+      updateAvailablePlayers: (players: Player[]) =>
+        set((state) => ({
+          ...state,
+          selectedPlayers: players,
+          teamBuilder: {
+            available: players,
+            team1: [],
+            team2: [],
+            team3: [],
           },
         })),
 
