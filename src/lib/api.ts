@@ -1,5 +1,5 @@
 // lib/api.ts
-import { Player, TriangularResult } from "@/types";
+import { Player, TriangularHistory, TriangularResult } from "@/types";
 
 // En desarrollo, Next.js maneja automáticamente las rutas relativas
 const API_BASE = "/api";
@@ -45,7 +45,7 @@ export const triangularService = {
     }
   },
 
-  async getTriangularHistory() {
+  async getTriangularHistory(): Promise<TriangularHistory[]> {
     try {
       const response = await fetch(`${API_BASE}/triangular/history`);
       if (!response.ok) throw new Error("Network response was not ok");
