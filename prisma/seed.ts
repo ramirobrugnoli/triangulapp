@@ -5,21 +5,21 @@ const prisma = new PrismaClient();
 async function main() {
   // Lista de jugadores con estadísticas iniciales en 0
   const players = [
-    "rama",
-    "pasko",
-    "kbz",
-    "giando",
-    "tomi",
-    "cuistone",
-    "cufa",
-    "matibc",
-    "luky",
-    "agusgue",
-    "matisabale",
-    "nacho",
-    "panchoanto",
-    "kevin",
-    "mateo",
+    "Rama",
+    "Pasko",
+    "Kbz",
+    "Giando",
+    "Tomi",
+    "Cuistone",
+    "Facu",
+    "MatiBc",
+    "Luky",
+    "AgusGue",
+    "MatiSabale",
+    "Nacho",
+    "Pancho",
+    "Kevin",
+    "Mateo",
   ];
 
   for (const playerName of players) {
