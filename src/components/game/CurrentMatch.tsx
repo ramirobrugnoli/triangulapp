@@ -46,6 +46,7 @@ export function CurrentMatch() {
   const timerRef = useRef<{ resetTimer: () => void } | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<"A" | "B" | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const notify = (message: string) => toast(message);
 
   const handleTimeUp = () => {
@@ -88,12 +89,16 @@ export function CurrentMatch() {
   };
 
   const handleFinishTriangular = async () => {
+    if (isSubmitting) return;
     try {
+      setIsSubmitting(true);
       await finalizeTriangular();
       notify("Triangular finalizado correctamente!");
     } catch (error) {
       console.error("Error al finalizar el triangular:", error);
       notify("Error al finalizar el triangular");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -191,7 +196,12 @@ export function CurrentMatch() {
 
         <button
           onClick={handleFinishTriangular}
-          className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700"
+          disabled={isSubmitting}
+          className={`w-full py-3 rounded-lg ${
+            isSubmitting
+              ? "bg-gray-700 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700"
+          }`}
         >
           Finalizar Triangular
         </button>
