@@ -176,17 +176,30 @@ export const useGameStore = create<GameStore>()(
                 lastDraw = "A";
                 lastWinner = "";
               } else {
-                //Primer cambio, si nadie empato ni gano antes
-                newActiveTeams = {
-                  teamA: activeTeams.waiting,
-                  teamB: activeTeams.teamB,
-                  waiting: activeTeams.teamA,
-                };
-                lastDraw = "B";
+                // Primer cambio, rotación aleatoria entre A y B
+                const randomTeam = Math.random() < 0.33 ? "A" : "B";
+
+                if (randomTeam === "A") {
+                  // A espera, B y waiting juegan
+                  newActiveTeams = {
+                    teamA: activeTeams.waiting,
+                    teamB: activeTeams.teamB,
+                    waiting: activeTeams.teamA,
+                  };
+                  lastDraw = "B";
+                } else {
+                  // B espera, A y waiting juegan
+                  newActiveTeams = {
+                    teamA: activeTeams.teamA,
+                    teamB: activeTeams.waiting,
+                    waiting: activeTeams.teamB,
+                  };
+                  lastDraw = "A";
+                }
+
                 lastWinner = "";
               }
           }
-
           return {
             ...state,
             activeTeams: newActiveTeams,
@@ -259,28 +272,42 @@ export const useGameStore = create<GameStore>()(
           ...state,
           timer: {
             ...state.timer,
-            timeLeft: state.timer.MATCH_DURATION,
+            endTime: null,
+            pausedTimeLeft: undefined,
           },
         })),
 
       startTimer: () =>
-        set((state) => ({
-          ...state,
-          timer: {
-            ...state.timer,
-            endTime: Date.now() + state.timer.MATCH_DURATION * 1000,
-            //endTime: Date.now() + state.timer.MATCH_DURATION + 6000,
-          },
-        })),
+        set((state) => {
+          // Definir tiempo en base al estado del timer
+          const timeToUse =
+            state.timer.pausedTimeLeft !== undefined
+              ? state.timer.pausedTimeLeft
+              : state.timer.MATCH_DURATION;
+
+          return {
+            ...state,
+            timer: {
+              ...state.timer,
+              endTime: Date.now() + timeToUse * 1000,
+              //endTime: Date.now() + timeToUse + 6000,
+              pausedTimeLeft: undefined,
+            },
+          };
+        }),
 
       stopTimer: () =>
-        set((state) => ({
-          ...state,
-          timer: {
-            ...state.timer,
-            endTime: null,
-          },
-        })),
+        set((state) => {
+          const currentTimeLeft = get().getTimeLeft();
+          return {
+            ...state,
+            timer: {
+              ...state.timer,
+              endTime: null,
+              pausedTimeLeft: currentTimeLeft, // Guardar el tiempo restante actual
+            },
+          };
+        }),
 
       getTimeLeft: () => {
         const state = get();
@@ -308,8 +335,10 @@ export const useGameStore = create<GameStore>()(
           timer: {
             ...state.timer,
             endTime: null,
+            pausedTimeLeft: undefined,
           },
         })),
+
       updateTeamPlayers: (teamBuilder) =>
         set((state) => ({
           ...state,

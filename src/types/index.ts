@@ -33,6 +33,7 @@ export interface TeamScore {
 export interface TimerState {
   endTime: number | null;
   MATCH_DURATION: number;
+  pausedTimeLeft?: number; // Tiempo en el que el timer se pausa
 }
 
 export interface GameTeam {
