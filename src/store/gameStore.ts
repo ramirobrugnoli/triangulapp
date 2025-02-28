@@ -335,8 +335,10 @@ export const useGameStore = create<GameStore>()(
           timer: {
             ...state.timer,
             endTime: null,
+            pausedTimeLeft: undefined,
           },
         })),
+
       updateTeamPlayers: (teamBuilder) =>
         set((state) => ({
           ...state,
