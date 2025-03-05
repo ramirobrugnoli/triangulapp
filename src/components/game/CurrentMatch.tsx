@@ -8,6 +8,7 @@ import { useRef, useState } from "react";
 import { GoalScorerModal } from "./GoalScorerModal";
 import { DailyScorersTable } from "./DailyScorersTable";
 import { toast, ToastContainer } from "react-toastify";
+import { getColorByTeam } from "@/lib/helpers/helpers";
 
 function GoalIndicator({ goals }: { goals: number }) {
   if (goals === 0) return null;
@@ -123,8 +124,8 @@ export function CurrentMatch() {
       <GameTimer onTimeUp={handleTimeUp} isActive={isActive} />
 
       <ScoreBoard
-        teamA={activeTeams.teamA.name}
-        teamB={activeTeams.teamB.name}
+        teamA={getColorByTeam(activeTeams.teamA.name)}
+        teamB={getColorByTeam(activeTeams.teamB.name)}
         scoreTeamA={scores.teamA}
         scoreTeamB={scores.teamB}
         onGoalTeamA={() => handleGoalClick("A")}
@@ -142,7 +143,7 @@ export function CurrentMatch() {
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-gray-900 p-4 rounded-lg border border-gray-700">
           <div className="font-bold mb-2 text-lg text-green-500">
-            {activeTeams.teamA.name}
+            {getColorByTeam(activeTeams.teamA.name)}
           </div>
           <div className="text-sm text-gray-400 leading-relaxed space-y-1">
             {activeTeams.teamA.members.map((member) => (
@@ -155,7 +156,7 @@ export function CurrentMatch() {
         </div>
         <div className="bg-gray-900 p-4 rounded-lg border border-gray-700">
           <div className="font-bold mb-2 text-lg text-green-500">
-            {activeTeams.teamB.name}
+            {getColorByTeam(activeTeams.teamB.name)}
           </div>
           <div className="text-sm text-gray-400 leading-relaxed space-y-1">
             {activeTeams.teamB.members.map((member) => (
@@ -172,7 +173,7 @@ export function CurrentMatch() {
         <div className="bg-gray-900 p-4 rounded-lg text-center">
           <h2 className="text-xl mb-2">Afuera</h2>
           <div className="text-green-500 font-bold">
-            {activeTeams.waiting.name}
+            {getColorByTeam(activeTeams.waiting.name)}
           </div>
           <div className="text-sm text-gray-400 mt-2 flex flex-col items-center space-y-1">
             {activeTeams.waiting.members.map((member) => (

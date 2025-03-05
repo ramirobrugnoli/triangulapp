@@ -1,7 +1,9 @@
 "use client";
 
+import { getColorByTeam } from "@/lib/helpers/helpers";
+
 interface TeamScore {
-  name: string;
+  name: "Equipo 1" | "Equipo 2" | "Equipo 3";
   points: number;
   wins: number; // victorias por 2 goles
   normalWins: number; // victorias por 1 gol
@@ -31,7 +33,7 @@ export function DailyScoreTable({ scores }: DailyScoreTableProps) {
         <tbody>
           {sortedScores.map((team) => (
             <tr key={team.name} className="border-t border-gray-800">
-              <td className="px-4 py-2">{team.name}</td>
+              <td className="px-4 py-2">{getColorByTeam(team.name)}</td>
               <td className="px-4 py-2 text-center">
                 {team.wins + team.normalWins + team.draws}
               </td>
