@@ -5,8 +5,7 @@ export type StatMetric = 'goals' | 'wins' | 'normalWins';
 
 export interface ChartData {
   categories: string[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  series: any[];
+  series: ApexOptions["series"];
   colors: string[];
   topThree: Player[];
   totalPlayers: number;

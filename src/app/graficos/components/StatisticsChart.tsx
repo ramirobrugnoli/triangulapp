@@ -8,8 +8,7 @@ const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 interface StatisticsChartProps {
   options: ApexOptions;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  series: any[]; 
+  series: ApexOptions["series"]; 
   type: "bar" | "line" | "area";
 }
 
