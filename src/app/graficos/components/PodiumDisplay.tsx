@@ -14,6 +14,7 @@ export function PodiumDisplay({ topThree, metric, onPlayerSelect }: PodiumDispla
     if (metric === 'goals') return player.stats.goals;
     if (metric === 'wins') return player.stats.wins;
     if (metric === 'normalWins') return player.stats.normalWins || 0;
+    if (metric === 'triangularPoints') return player.stats.points;
     return 0;
   };
 
