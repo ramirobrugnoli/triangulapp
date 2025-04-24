@@ -8,6 +8,7 @@ export interface PlayerStats {
   draws: number;
   losses: number;
   points: number;
+  normalWins?: number;
 }
 
 export interface Player {

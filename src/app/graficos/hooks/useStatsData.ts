@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Player } from "@/types";
 import { api } from "@/lib/api";
 import { StatMetric, ChartData } from "@/types/stats";
+import { ApexOptions } from "apexcharts";
 import { mockPlayers } from "../mocks/data";
 
 export function useStatsData() {
@@ -144,7 +145,7 @@ export function useStatsData() {
       })
     }];
 
-    const chartOptions = {
+    const chartOptions: ApexOptions = {
       chart: {
         type: 'bar' as const,
         foreColor: '#fff',

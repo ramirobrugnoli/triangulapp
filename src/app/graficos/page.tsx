@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { StatMetric, ChartData } from "@/types/stats";
 import { StatisticsChart } from "@/app/graficos/components/StatisticsChart";
 import { PodiumDisplay } from "@/app/graficos/components/PodiumDisplay";
@@ -8,12 +7,8 @@ import { PlayersCountSelector } from "@/app/graficos/components/PlayersCountSele
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
 import { useStatsData } from "@/app/graficos/hooks/useStatsData";
-import { getMockData } from "@/app/graficos/mocks/data";
 
 export default function GraficosPage() {
-  // Use mock data in development environment
-  const isDevelopment = process.env.NODE_ENV === 'development';
-  
   const { 
     loading, 
     error, 
@@ -88,7 +83,6 @@ function StatisticsSection({
   title,
   metric,
   data,
-  highlightedPlayer,
   playersToShow,
   onPlayerHighlight,
   onPlayersToShowChange
