@@ -1,7 +1,7 @@
 import { Player } from "@/types";
 import { ApexOptions } from "apexcharts";
 
-export type StatMetric = 'goals' | 'wins' | 'normalWins';
+export type StatMetric = 'goals' | 'wins' | 'normalWins' | 'points' | 'triangularPoints';
 
 export interface ChartData {
   categories: string[];

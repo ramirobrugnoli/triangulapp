@@ -6,18 +6,33 @@ import { PodiumDisplay } from "@/app/graficos/components/PodiumDisplay";
 import { PlayersCountSelector } from "@/app/graficos/components/PlayersCountSelector";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { ErrorMessage } from "@/components/ui/ErrorMessage";
-import { useStatsData } from "@/app/graficos/hooks/useStatsData";
+import { useStatsStore } from "@/store/statsStore";
+import { useEffect } from "react";
+import { prepareChartDataFromPlayers, prepareChartDataFromTriangularPoints } from "@/app/graficos/utils/chartUtils";
 
 export default function GraficosPage() {
   const { 
     loading, 
     error, 
+    players,
     highlightedPlayers, 
     playersToShow,
+    triangularHistory,
+    fetchStats,
     handlePlayerHighlight,
-    handlePlayersToShowChange,
-    prepareChartData
-  } = useStatsData();
+    handlePlayersToShowChange
+  } = useStatsStore();
+
+  const playerPoints = useStatsStore(state => state.triangularPointsTable);
+  const calculateTriangularPointsTable = useStatsStore(state => state.calculateTriangularPointsTable);
+
+  useEffect(() => {
+    calculateTriangularPointsTable();
+  }, [players, triangularHistory, calculateTriangularPointsTable]);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
 
   if (loading) {
     return <LoadingSpinner />;
@@ -28,14 +43,24 @@ export default function GraficosPage() {
   }
 
   // Preparamos los datos para cada gráfico
-  const goalsData = prepareChartData('goals');
-  const winsData = prepareChartData('wins');
-  const normalWinsData = prepareChartData('normalWins');
+  const triangularPointsData = prepareChartDataFromTriangularPoints(playerPoints, playersToShow.triangularPoints, highlightedPlayers.triangularPoints);
+  const goalsData = prepareChartDataFromPlayers(players, 'goals', playersToShow.goals, highlightedPlayers.goals);
+  const winsData = prepareChartDataFromPlayers(players, 'wins', playersToShow.wins, highlightedPlayers.wins);
 
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-bold">Gráficos de Estadísticas</h1>
 
+      <StatisticsSection 
+        title="Ranking de Puntos en Triangulares"
+        metric="triangularPoints"
+        data={triangularPointsData}
+        highlightedPlayer={highlightedPlayers.triangularPoints}
+        playersToShow={playersToShow.triangularPoints}
+        onPlayerHighlight={handlePlayerHighlight}
+        onPlayersToShowChange={handlePlayersToShowChange}
+      />
+      
       <StatisticsSection 
         title="Ranking de Goleadores"
         metric="goals"
@@ -52,16 +77,6 @@ export default function GraficosPage() {
         data={winsData}
         highlightedPlayer={highlightedPlayers.wins}
         playersToShow={playersToShow.wins}
-        onPlayerHighlight={handlePlayerHighlight}
-        onPlayersToShowChange={handlePlayersToShowChange}
-      />
-
-      <StatisticsSection 
-        title="Ranking de Victorias Normales"
-        metric="normalWins"
-        data={normalWinsData}
-        highlightedPlayer={highlightedPlayers.normalWins}
-        playersToShow={playersToShow.normalWins}
         onPlayerHighlight={handlePlayerHighlight}
         onPlayersToShowChange={handlePlayersToShowChange}
       />
