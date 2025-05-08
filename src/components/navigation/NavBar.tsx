@@ -33,6 +33,7 @@ export function NavBar() {
           </svg>
           <span className="text-xs mt-1">Estadísticas</span>
         </Link>
+
         <Link
           href="/graficos"
           className={`flex flex-col items-center ${
@@ -54,6 +55,29 @@ export function NavBar() {
           </svg>
           <span className="text-xs mt-1">Gráficos</span>
         </Link>
+
+        <Link
+          href="/historial"
+          className={`flex flex-col items-center ${
+            pathname === "/historial" ? "text-green-500" : "text-gray-400"
+          }`}
+        >
+          <svg
+            className="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <span className="text-xs mt-1">Historial</span>
+        </Link>
+
         <Link
           href="/armador"
           className={`flex flex-col items-center ${
@@ -75,6 +99,7 @@ export function NavBar() {
           </svg>
           <span className="text-xs mt-1">Armador</span>
         </Link>
+
         {activeTeams?.waiting?.members && (
           <Link
             href="/anotador"
