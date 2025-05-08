@@ -3,7 +3,7 @@ import { Player } from "@/types";
 import { api } from "@/lib/api";
 import { StatMetric, ChartData } from "@/types/stats";
 import { ApexOptions } from "apexcharts";
-import { mockPlayers } from "../mocks/data";
+import { mockPlayers } from "../../../store/mocks/stats";
 
 export function useStatsData() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -58,7 +58,7 @@ export function useStatsData() {
   const handlePlayerHighlight = (metric: StatMetric, playerName: string) => {
     setHighlightedPlayers(prev => ({
       ...prev,
-      [metric]: prev[metric] === playerName ? null : playerName,
+      [metric]: prev[metric as keyof typeof prev] === playerName ? null : playerName,
     }));
   };
 
@@ -124,11 +124,11 @@ export function useStatsData() {
     const topThree = filteredPlayers.slice(0, 3);
     
     // Limitamos la cantidad de jugadores según el estado
-    const limitedPlayers = filteredPlayers.slice(0, playersToShow[metric]);
+    const limitedPlayers = filteredPlayers.slice(0, playersToShow[metric as keyof typeof playersToShow]);
 
     const categories = limitedPlayers.map(p => p.name);
     const colors = limitedPlayers.map((p, index) => 
-      highlightedPlayers[metric] === p.name ? '#FF5733' : // Color destacado si está seleccionado
+      highlightedPlayers[metric as keyof typeof highlightedPlayers] === p.name ? '#FF5733' : // Color destacado si está seleccionado
       index === 0 ? '#F59E0B' : // 1º lugar - dorado
       index === 1 ? '#10B981' : // 2º lugar - verde
       index === 2 ? '#3B82F6' : // 3º lugar - azul

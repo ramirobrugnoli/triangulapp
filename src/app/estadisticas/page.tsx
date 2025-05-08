@@ -1,41 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { PointsTable } from "@/components/stats/PointsTable";
 import { TriangularPointsTable } from "@/components/stats/TriangularPointsTable";
-import { api } from "@/lib/api";
-import { Player, TriangularHistory } from "@/types";
+import { useStatsStore } from "@/store/statsStore";
 
 export default function EstadisticasPage() {
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [triangularHistory, setTriangularHistory] = useState<
-    TriangularHistory[]
-  >([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { players, triangularHistory, loading, error, fetchStats } = useStatsStore();
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-
-        // Cargar jugadores y triangulares en paralelo
-        const [playersData, historyData] = await Promise.all([
-          api.players.getAllPlayers(),
-          api.triangular.getTriangularHistory(),
-        ]);
-
-        setPlayers(playersData);
-        setTriangularHistory(historyData);
-      } catch (error) {
-        console.error("Error cargando los datos:", error);
-        setError("Error al cargar los datos. Por favor, intenta nuevamente.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+      fetchStats();
   }, []);
 
   if (loading) {

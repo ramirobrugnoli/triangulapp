@@ -14,9 +14,8 @@ export function NavBar() {
       <div className="flex justify-around max-w-md mx-auto">
         <Link
           href="/estadisticas"
-          className={`flex flex-col items-center ${
-            pathname === "/estadisticas" ? "text-green-500" : "text-gray-400"
-          }`}
+          className={`flex flex-col items-center ${pathname === "/estadisticas" ? "text-green-500" : "text-gray-400"
+            }`}
         >
           <svg
             className="w-6 h-6"
@@ -80,9 +79,8 @@ export function NavBar() {
 
         <Link
           href="/armador"
-          className={`flex flex-col items-center ${
-            pathname === "/armador" ? "text-green-500" : "text-gray-400"
-          }`}
+          className={`flex flex-col items-center ${pathname === "/armador" ? "text-green-500" : "text-gray-400"
+            }`}
         >
           <svg
             className="w-6 h-6"
@@ -103,9 +101,8 @@ export function NavBar() {
         {activeTeams?.waiting?.members && (
           <Link
             href="/anotador"
-            className={`flex flex-col items-center ${
-              pathname === "/anotador" ? "text-green-500" : "text-gray-400"
-            }`}
+            className={`flex flex-col items-center ${pathname === "/anotador" ? "text-green-500" : "text-gray-400"
+              }`}
           >
             <svg
               className="w-6 h-6"
@@ -126,9 +123,8 @@ export function NavBar() {
 
         <Link
           href="/jugadores"
-          className={`flex flex-col items-center ${
-            pathname === "/jugadores" ? "text-green-500" : "text-gray-400"
-          }`}
+          className={`flex flex-col items-center ${pathname === "/jugadores" ? "text-green-500" : "text-gray-400"
+            }`}
         >
           <svg
             className="w-6 h-6"
