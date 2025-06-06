@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useGameStore } from "@/store/gameStore";
 import { useRouter } from "next/navigation";
 import { toast, ToastContainer } from "react-toastify";
+import { api } from "@/lib/api";
 
 interface TeamBuilderState {
   available: Player[];
@@ -33,6 +34,7 @@ export function TeamsBuilder() {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [playerRatings, setPlayerRatings] = useState<{ [playerId: string]: number }>({});
   const { setTeams: setGlobalTeams, selectedPlayers } = useGameStore();
   const router = useRouter();
   const notify = (message: string) => toast(message);
@@ -50,7 +52,40 @@ export function TeamsBuilder() {
 
     setTeams((prev) => ({ ...prev, available: selectedPlayers }));
     setLoading(false);
+    
+    // Cargar ratings de jugadores al inicializar
+    loadPlayerRatings();
   }, [selectedPlayers, router]);
+
+  const loadPlayerRatings = async () => {
+    try {
+      const playerIds = selectedPlayers.map(player => player.id);
+      const playerStats = await api.players.getPlayerStatsByIds(playerIds);
+      
+      const ratings: { [playerId: string]: number } = {};
+      playerStats.forEach(player => {
+        const stats = player.stats;
+        const goalsPerMatch = stats.matches > 0 ? stats.goals / stats.matches : 0;
+        const winPercentage = stats.winPercentage || 0;
+        const rating = (stats.points * 0.4) + (winPercentage * 0.35) + (goalsPerMatch * 25);
+        ratings[player.id] = Math.round(rating * 100) / 100;
+      });
+      
+      setPlayerRatings(ratings);
+    } catch (error) {
+      console.error("Error al cargar ratings:", error);
+    }
+  };
+
+  const calculateTeamRating = (teamPlayers: Player[]): number => {
+    if (teamPlayers.length === 0) return 0;
+    
+    const totalRating = teamPlayers.reduce((sum, player) => {
+      return sum + (playerRatings[player.id] || 0);
+    }, 0);
+    
+    return Math.round(totalRating * 100) / 100;
+  };
 
   // Función para encontrar el equipo del jugador seleccionado
   const findPlayerTeam = (playerId: string): string => {
@@ -172,6 +207,141 @@ export function TeamsBuilder() {
     }
   };
 
+  const handleFetchPlayerStats = async () => {
+    const allPlayers = [
+      ...teams.available,
+      ...teams.team1,
+      ...teams.team2,
+      ...teams.team3,
+    ];
+
+    if (allPlayers.length === 0) {
+      toast.warning("No hay jugadores para mostrar estadísticas");
+      return;
+    }
+
+    try {
+      const playerIds = allPlayers.map(player => player.id);
+      const stats = await api.players.getPlayerStatsByIds(playerIds);
+      console.log("Estadísticas de jugadores:", stats);
+      toast.success(`Estadísticas de ${stats.length} jugadores obtenidas correctamente`);
+    } catch (error) {
+      console.error("Error al obtener estadísticas:", error);
+      toast.error("Error al obtener estadísticas de jugadores");
+    }
+  };
+
+  const handleSuggestTeamsByStats = async () => {
+    const allPlayers = [
+      ...teams.available,
+      ...teams.team1,
+      ...teams.team2,
+      ...teams.team3,
+    ];
+
+    if (allPlayers.length === 0) {
+      toast.warning("No hay jugadores para formar equipos");
+      return;
+    }
+
+    try {
+      toast.info("Analizando estadísticas y formando equipos balanceados...");
+      
+      // Obtener estadísticas de todos los jugadores
+      const playerIds = allPlayers.map(player => player.id);
+      const playerStats = await api.players.getPlayerStatsByIds(playerIds);
+
+      // Calcular rating para cada jugador basado en sus estadísticas
+      const playersWithRating = playerStats.map(player => {
+        const stats = player.stats;
+        // Rating basado en: puntos (peso 40%), % victorias (peso 35%), goles por partido (peso 25%)
+        const goalsPerMatch = stats.matches > 0 ? stats.goals / stats.matches : 0;
+        const winPercentage = stats.winPercentage || 0;
+        const rating = (stats.points * 0.4) + (winPercentage * 0.35) + (goalsPerMatch * 25);
+        
+        return {
+          ...player,
+          rating: Math.round(rating * 100) / 100
+        };
+      });
+
+      // Ordenar jugadores por rating (de mayor a menor)
+      playersWithRating.sort((a, b) => b.rating - a.rating);
+
+      console.log("Jugadores ordenados por rating:", playersWithRating.map(p => ({
+        name: p.name,
+        rating: p.rating,
+        stats: p.stats
+      })));
+
+      // Distribuir jugadores en equipos de manera balanceada
+      const team1: Player[] = [];
+      const team2: Player[] = [];
+      const team3: Player[] = [];
+      const teams_array = [team1, team2, team3];
+
+      // Algoritmo de distribución balanceada: serpentín
+      let teamIndex = 0;
+      let direction = 1;
+
+      playersWithRating.forEach((player, index) => {
+        // Encontrar el jugador original sin el rating
+        const originalPlayer = allPlayers.find(p => p.id === player.id);
+        if (originalPlayer) {
+          teams_array[teamIndex].push(originalPlayer);
+        }
+
+        // Cambiar al siguiente equipo
+        teamIndex += direction;
+        
+        // Si llegamos al final o al principio, cambiar dirección
+        if (teamIndex >= teams_array.length) {
+          teamIndex = teams_array.length - 1;
+          direction = -1;
+        } else if (teamIndex < 0) {
+          teamIndex = 0;
+          direction = 1;
+        }
+      });
+
+      // Calcular ratings totales de cada equipo para mostrar el balance
+      const team1Rating = team1.reduce((sum, player) => {
+        const playerWithRating = playersWithRating.find(p => p.id === player.id);
+        return sum + (playerWithRating?.rating || 0);
+      }, 0);
+
+      const team2Rating = team2.reduce((sum, player) => {
+        const playerWithRating = playersWithRating.find(p => p.id === player.id);
+        return sum + (playerWithRating?.rating || 0);
+      }, 0);
+
+      const team3Rating = team3.reduce((sum, player) => {
+        const playerWithRating = playersWithRating.find(p => p.id === player.id);
+        return sum + (playerWithRating?.rating || 0);
+      }, 0);
+
+      console.log("Rating de equipos:", {
+        team1: Math.round(team1Rating * 100) / 100,
+        team2: Math.round(team2Rating * 100) / 100,
+        team3: Math.round(team3Rating * 100) / 100
+      });
+
+      // Aplicar los equipos sugeridos
+      setTeams({
+        available: [],
+        team1,
+        team2,
+        team3
+      });
+
+      toast.success(`Equipos balanceados creados. Ratings: T1(${Math.round(team1Rating)}), T2(${Math.round(team2Rating)}), T3(${Math.round(team3Rating)})`);
+      
+    } catch (error) {
+      console.error("Error al sugerir equipos:", error);
+      toast.error("Error al formar equipos basados en estadísticas");
+    }
+  };
+
   const handleRandomTeams = () => {
     const allPlayers = [
       ...teams.available,
@@ -290,8 +460,13 @@ export function TeamsBuilder() {
                   transition-all duration-200
                 `}
               >
-                <h3 className="text-lg font-bold mb-4">Equipo {index + 1}</h3>
-                <div className="space-y-2">
+                <div className="flex flex-col justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold">Equipo {index + 1}</h3>
+                  <div className="text-sm text-gray-400">
+                    ({teams[teamId].length}/5)
+                  </div>
+                </div>
+                <div className="space-y-2 mb-3">
                   {teams[teamId].map((player) => (
                     <button
                       key={player.id}
@@ -311,6 +486,14 @@ export function TeamsBuilder() {
                       {player.name}
                     </button>
                   ))}
+                </div>
+                <div className="border-t border-gray-700 pt-2">
+                  <div className="text-center">
+                    <span className="text-xs text-gray-400">Rating: </span>
+                    <span className="text-sm font-bold text-blue-400">
+                      {calculateTeamRating(teams[teamId])}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -333,6 +516,19 @@ export function TeamsBuilder() {
           ) : (
             "Confirmar Equipos"
           )}
+        </button>
+
+        <button
+          onClick={handleFetchPlayerStats}
+          className="w-full py-3 rounded-lg font-bold bg-blue-600 hover:bg-blue-700"
+        >
+          Ver estadísticas de jugadores
+        </button>
+        <button
+          onClick={handleSuggestTeamsByStats}
+          className="w-full py-3 rounded-lg font-bold bg-blue-600 hover:bg-blue-700"
+        >
+          Sugerir equipos en base a estadísticas
         </button>
       </div>
     </>

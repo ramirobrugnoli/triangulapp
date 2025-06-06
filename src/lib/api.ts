@@ -15,6 +15,30 @@ export const playerService = {
       throw error;
     }
   },
+  
+  async getPlayerStatsByIds(playerIds: string[]): Promise<Player[]> {
+    try {
+      const response = await fetch(`${API_BASE}/players/stats`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ playerIds }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ message: "Error desconocido" }));
+        throw new Error(errorData.message || "Error al obtener estadísticas de jugadores");
+      }
+      
+      return response.json();
+    } catch (error) {
+      console.error("Error fetching player statistics:", error);
+      throw error;
+    }
+  },
 };
 
 export const triangularService = {

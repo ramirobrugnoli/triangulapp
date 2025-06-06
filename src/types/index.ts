@@ -9,6 +9,7 @@ export interface PlayerStats {
   losses: number;
   points: number;
   normalWins?: number;
+  winPercentage?: number;
 }
 
 export interface Player {
