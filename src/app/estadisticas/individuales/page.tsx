@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 
 export default function EstadisticasIndividualesPage() {
   const router = useRouter();
-  const { players, triangularHistory, loading, error, fetchStats } = useStatsStore();
+  const { players, loading, error, fetchStats } = useStatsStore();
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [playersWithStats, setPlayersWithStats] = useState<Player[]>([]);
   const [mounted, setMounted] = useState(false);
@@ -37,6 +37,7 @@ export default function EstadisticasIndividualesPage() {
 
   useEffect(() => {
     fetchStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -90,7 +91,6 @@ export default function EstadisticasIndividualesPage() {
       {selectedPlayer && (
         <PlayerStatsCharts 
           player={selectedPlayer}
-          triangularHistory={triangularHistory}
           allPlayers={playersWithStats}
         />
       )}

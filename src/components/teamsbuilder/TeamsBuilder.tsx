@@ -52,13 +52,9 @@ function AvailablePlayersDropZone({ children }: { children: React.ReactNode }) {
 function DraggablePlayerCircle({
   player,
   isSelected,
-  draggedPlayer,
-  findPlayerTeam
 }: {
   player: Player;
   isSelected: boolean;
-  draggedPlayer: Player | null;
-  findPlayerTeam: (playerId: string) => string;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: player.id,
@@ -259,6 +255,7 @@ export function TeamsBuilder() {
     
     // Cargar ratings de jugadores al inicializar
     loadPlayerRatings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPlayers, router]);
 
   const loadPlayerRatings = async () => {
@@ -455,30 +452,6 @@ export function TeamsBuilder() {
     }
   };
 
-  const handleFetchPlayerStats = async () => {
-    const allPlayers = [
-      ...teams.available,
-      ...teams.team1,
-      ...teams.team2,
-      ...teams.team3,
-    ];
-
-    if (allPlayers.length === 0) {
-      toast.warning("No hay jugadores para mostrar estadísticas");
-      return;
-    }
-
-    try {
-      const playerIds = allPlayers.map(player => player.id);
-      const stats = await api.players.getPlayerStatsByIds(playerIds);
-      console.log("Estadísticas de jugadores:", stats);
-      toast.success(`Estadísticas de ${stats.length} jugadores obtenidas correctamente`);
-    } catch (error) {
-      console.error("Error al obtener estadísticas:", error);
-      toast.error("Error al obtener estadísticas de jugadores");
-    }
-  };
-
   const handleSuggestTeamsByStats = async () => {
     const allPlayers = [
       ...teams.available,
@@ -526,7 +499,7 @@ export function TeamsBuilder() {
       let teamIndex = 0;
       let direction = 1;
 
-      sortedPlayers.forEach((player, index) => {
+      sortedPlayers.forEach((player) => {
         // Encontrar el jugador original sin el rating
         const originalPlayer = allPlayers.find(p => p.id === player.id);
         if (originalPlayer) {
@@ -622,26 +595,6 @@ export function TeamsBuilder() {
     });
   };
 
-  const renderPlayerList = (items: Player[], title: string) => (
-    <DroppableTeam
-      id="available"
-      title={title}
-      playerCount={items.length}
-      rating={calculateTeamRating(items)}
-      isOverflow={false}
-    >
-      {items.map((player) => (
-        <DraggablePlayer
-          key={player.id}
-          player={player}
-          isSelected={selectedPlayer?.id === player.id}
-          draggedPlayer={draggedPlayer}
-          findPlayerTeam={findPlayerTeam}
-        />
-      ))}
-    </DroppableTeam>
-  );
-
   // No renderizar drag and drop hasta que esté mounted
   if (!mounted || loading) {
     return (
@@ -693,8 +646,6 @@ export function TeamsBuilder() {
                       key={player.id}
                       player={player}
                       isSelected={selectedPlayer?.id === player.id}
-                      draggedPlayer={draggedPlayer}
-                      findPlayerTeam={findPlayerTeam}
                     />
                   ))}
                 </div>

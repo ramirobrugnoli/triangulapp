@@ -1,5 +1,5 @@
 import { Player, PlayerStats } from "@/types";
-import { TeamResult } from "@prisma/client";
+import { TeamResult, Player as PrismaPlayer } from "@prisma/client";
 
 /**
  * PlayerStatsService - Servicio centralizado para todos los cálculos de estadísticas de jugadores
@@ -82,7 +82,7 @@ export class PlayerStatsService {
   static calculatePlayerRating(stats: PlayerStats): number {
     const goalsPerMatch = stats.matches > 0 ? stats.goals / stats.matches : 0;
     const winPercentage = stats.winPercentage || 0;
-    
+
     const rating = (stats.points * 0.4) + (winPercentage * 0.35) + (goalsPerMatch * 25);
     return Math.round(rating * 100) / 100;
   }
@@ -93,7 +93,7 @@ export class PlayerStatsService {
   static calculateRatingBreakdown(stats: PlayerStats): RatingBreakdown {
     const goalsPerMatch = stats.matches > 0 ? stats.goals / stats.matches : 0;
     const winPercentage = stats.winPercentage || 0;
-    
+
     const pointsComponent = Math.round(stats.points * 0.4 * 100) / 100;
     const winPercentageComponent = Math.round(winPercentage * 0.35 * 100) / 100;
     const goalsPerMatchComponent = Math.round(goalsPerMatch * 25 * 100) / 100;
@@ -162,7 +162,7 @@ export class PlayerStatsService {
    */
   static calculatePlayersRatings(players: Player[]): { [playerId: string]: number } {
     const ratings: { [playerId: string]: number } = {};
-    
+
     players.forEach(player => {
       ratings[player.id] = this.calculatePlayerRating(player.stats);
     });
@@ -251,28 +251,28 @@ export class PlayerStatsService {
    */
 
   static calculatePlayerStats(
-    player: any, 
+    player: PrismaPlayer,
     triangularStats: TriangularStatsResult
   ): PlayerStats {
-console.log({
-  matches: triangularStats.matches,
-  goals: player.goals,
-  wins: player.wins,
-  draws: player.draws,
-  losses: triangularStats.matches - triangularStats.matchesWon - triangularStats.matchesDraw,
-  points: player.wins * 3 + player.draws,
-  winPercentage: triangularStats.matches > 0
-    ? Math.round((player.wins / triangularStats.matches) * 100)
-    : 0,
-  triangularsPlayed: triangularStats.triangularsPlayed,
-  triangularWins: triangularStats.triangularWins,
-  triangularSeconds: triangularStats.triangularSeconds,
-  triangularThirds: triangularStats.triangularThirds,
-  triangularPoints: triangularStats.triangularPoints,
-  triangularWinPercentage: triangularStats.triangularsPlayed > 0
-    ? Math.round((triangularStats.triangularWins / triangularStats.triangularsPlayed) * 100)
-    : 0,
-})
+    console.log({
+      matches: triangularStats.matches,
+      goals: player.goals,
+      wins: player.wins,
+      draws: player.draws,
+      losses: triangularStats.matches - triangularStats.matchesWon - triangularStats.matchesDraw,
+      points: player.wins * 3 + player.draws,
+      winPercentage: triangularStats.matches > 0
+        ? Math.round((player.wins / triangularStats.matches) * 100)
+        : 0,
+      triangularsPlayed: triangularStats.triangularsPlayed,
+      triangularWins: triangularStats.triangularWins,
+      triangularSeconds: triangularStats.triangularSeconds,
+      triangularThirds: triangularStats.triangularThirds,
+      triangularPoints: triangularStats.triangularPoints,
+      triangularWinPercentage: triangularStats.triangularsPlayed > 0
+        ? Math.round((triangularStats.triangularWins / triangularStats.triangularsPlayed) * 100)
+        : 0,
+    })
 
     return {
       matches: triangularStats.matches,
@@ -298,9 +298,9 @@ console.log({
   /**
    * Procesa un jugador completo con sus triangulares y devuelve el objeto Player
    */
-  static processPlayerWithTriangulars(playerData: any): Player {
+  static processPlayerWithTriangulars(playerData: PrismaPlayer & { triangulars: PlayerTriangularData[] }): Player {
     const triangularStats = this.calculateTriangularStats(playerData.triangulars);
-    
+
     return {
       id: playerData.id,
       name: playerData.name,
@@ -311,7 +311,7 @@ console.log({
   /**
    * Procesa múltiples jugadores en paralelo
    */
-  static processMultiplePlayers(playersData: any[]): Player[] {
+  static processMultiplePlayers(playersData: (PrismaPlayer & { triangulars: PlayerTriangularData[] })[]): Player[] {
     return playersData.map(playerData => this.processPlayerWithTriangulars(playerData));
   }
 
@@ -320,19 +320,19 @@ console.log({
    */
   static calculateTriangularAverages(stats: PlayerStats): TriangularAverages {
     const triangularsPlayed = stats.triangularsPlayed || 0;
-    
+
     return {
-      pointsPerTriangular: triangularsPlayed > 0 
-        ? Math.round((stats.points / triangularsPlayed) * 100) / 100 
+      pointsPerTriangular: triangularsPlayed > 0
+        ? Math.round((stats.points / triangularsPlayed) * 100) / 100
         : 0,
-      winsPerTriangular: triangularsPlayed > 0 
-        ? Math.round((stats.wins / triangularsPlayed) * 100) / 100 
+      winsPerTriangular: triangularsPlayed > 0
+        ? Math.round((stats.wins / triangularsPlayed) * 100) / 100
         : 0,
-      goalsPerTriangular: triangularsPlayed > 0 
-        ? Math.round((stats.goals / triangularsPlayed) * 100) / 100 
+      goalsPerTriangular: triangularsPlayed > 0
+        ? Math.round((stats.goals / triangularsPlayed) * 100) / 100
         : 0,
-      matchesPerTriangular: triangularsPlayed > 0 
-        ? Math.round((stats.matches / triangularsPlayed) * 100) / 100 
+      matchesPerTriangular: triangularsPlayed > 0
+        ? Math.round((stats.matches / triangularsPlayed) * 100) / 100
         : 0,
     };
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Player, TriangularHistory } from "@/types";
+import { Player } from "@/types";
 import dynamic from "next/dynamic";
 import { useMemo, useState, useEffect } from "react";
 import { PlayerStatsService } from "@/lib/services/playerStats";
@@ -13,11 +13,10 @@ const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 interface PlayerStatsChartsProps {
   player: Player;
-  triangularHistory: TriangularHistory[];
-  allPlayers?: Player[]; // Nuevo prop para calcular máximos
+  allPlayers?: Player[];
 }
 
-export function PlayerStatsCharts({ player, triangularHistory, allPlayers = [] }: PlayerStatsChartsProps) {
+export function PlayerStatsCharts({ player, allPlayers = [] }: PlayerStatsChartsProps) {
   // Estado para controlar si el componente se ha montado (hidratado)
   const [mounted, setMounted] = useState(false);
 
@@ -218,7 +217,7 @@ export function PlayerStatsCharts({ player, triangularHistory, allPlayers = [] }
     tooltip: {
       theme: 'dark',
       y: {
-        formatter: function(val: number, opts: any) {
+        formatter: function(val: number, opts: {dataPointIndex: number}) {
           const playerName = nearbyRatingPlayersData.categories[opts.dataPointIndex];
           return `${playerName}: ${val.toFixed(1)} rating`;
         }
@@ -313,7 +312,7 @@ export function PlayerStatsCharts({ player, triangularHistory, allPlayers = [] }
     tooltip: {
       theme: 'dark',
       y: {
-        formatter: function(val: number, opts: any) {
+        formatter: function(val: number, opts: {dataPointIndex: number}) {
           const playerName = nearbyPlayersData.categories[opts.dataPointIndex];
           return `${playerName}: ${val} puntos`;
         }

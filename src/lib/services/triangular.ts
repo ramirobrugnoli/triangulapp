@@ -5,6 +5,93 @@ import { mapTriangularToHistory } from "@/types/prisma";
 /* import type { PrismaClient } from "@prisma/client"; */
 
 export const triangularService = {
+  async recalculateAllPlayerStats() {
+    return prisma.$transaction(
+      async (tx) => {
+        try {
+          // 1. Obtener todos los triangulares con sus participaciones de jugadores
+          const triangulars = await tx.triangular.findMany({
+            include: {
+              players: {
+                include: {
+                  player: true,
+                },
+              },
+            },
+          });
+
+          // 2. Reiniciar estadísticas de todos los jugadores
+          await tx.player.updateMany({
+            data: {
+              matches: 0,
+              wins: 0,
+              draws: 0,
+              losses: 0,
+              goals: 0,
+            },
+          });
+
+          // 3. Agrupar participaciones por jugador
+          const playerStats: Record<string, {
+            matches: number;
+            wins: number;
+            draws: number;
+            losses: number;
+            goals: number;
+          }> = {};
+
+          for (const triangular of triangulars) {
+            for (const participation of triangular.players) {
+              const playerId = participation.playerId;
+              
+              if (!playerStats[playerId]) {
+                playerStats[playerId] = {
+                  matches: 0,
+                  wins: 0,
+                  draws: 0,
+                  losses: 0,
+                  goals: 0,
+                };
+              }
+
+              // En cada triangular, cada jugador juega 2 partidos
+              playerStats[playerId].matches += 2;
+              playerStats[playerId].wins += participation.wins;
+              playerStats[playerId].draws += participation.draws;
+              playerStats[playerId].losses += (2 - participation.wins - participation.draws);
+              playerStats[playerId].goals += participation.goals;
+            }
+          }
+
+          // 4. Actualizar estadísticas de cada jugador
+          for (const [playerId, stats] of Object.entries(playerStats)) {
+            await tx.player.update({
+              where: { id: playerId },
+              data: {
+                matches: stats.matches,
+                wins: stats.wins,
+                draws: stats.draws,
+                losses: stats.losses,
+                goals: stats.goals,
+              },
+            });
+          }
+
+          return {
+            triangularsProcessed: triangulars.length,
+            playersUpdated: Object.keys(playerStats).length,
+          };
+        } catch (error) {
+          console.error("Error recalculando estadísticas:", error);
+          throw error;
+        }
+      },
+      {
+        timeout: 30000,
+      }
+    );
+  },
+
   async saveTriangular(result: TriangularResult) {
     return prisma.$transaction(
       async (tx) => {
