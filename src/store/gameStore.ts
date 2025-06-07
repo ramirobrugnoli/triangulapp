@@ -8,6 +8,7 @@ import {
   TeamBuilderState,
   TeamScore,
   TriangularResult,
+  MatchRecord,
 } from "@/types";
 import { api } from "@/lib/api";
 
@@ -35,6 +36,7 @@ interface GameStore extends GameState {
 
   setTimeLeft: (time: number) => void;
   resetTimer: () => void;
+  decrementTimer: () => void;
 
   startTimer: () => void;
   stopTimer: () => void;
@@ -54,6 +56,11 @@ interface GameStore extends GameState {
   registerGoal: (playerId: string) => void;
   finalizeTriangular: () => Promise<void>;
   updateAvailablePlayers: (players: Player[]) => void;
+  
+  // Funciones para historial de partidos
+  getLastMatch: () => MatchRecord | null;
+  saveMatchToHistory: (result: "A" | "B" | "draw") => void;
+  editLastMatch: (editedMatch: MatchRecord) => void;
 }
 
 const MATCH_DURATION = 7 * 60;
@@ -74,8 +81,9 @@ const initialState: GameState = {
     { name: "Equipo 3", points: 0, wins: 0, normalWins: 0, draws: 0 },
   ],
   timer: {
-    endTime: null,
+    timeLeft: MATCH_DURATION,
     MATCH_DURATION,
+    isRunning: false,
   },
   isActive: false,
   teamBuilder: {
@@ -88,6 +96,7 @@ const initialState: GameState = {
   lastWinner: "",
   lastDraw: "",
   selectedPlayers: [],
+  matchHistory: [],
 };
 
 export const useGameStore = create<GameStore>()(
@@ -115,6 +124,10 @@ export const useGameStore = create<GameStore>()(
       rotateTeams: (winner) =>
         set((state) => {
           const { activeTeams } = state;
+          
+          // Primero guardar el partido en el historial
+          get().saveMatchToHistory(winner);
+          
           let newActiveTeams;
           let lastWinner = state.lastWinner;
           let lastDraw = state.lastDraw;
@@ -176,8 +189,10 @@ export const useGameStore = create<GameStore>()(
                 lastDraw = "A";
                 lastWinner = "";
               } else {
-                // Primer cambio, rotación aleatoria entre A y B
-                const randomTeam = Math.random() < 0.33 ? "A" : "B";
+                // Primer cambio, usar una rotación determinística basada en timestamp
+                // Esto evita problemas de hidratación al usar Math.random()
+                const now = Date.now();
+                const randomTeam = (now % 2) === 0 ? "A" : "B";
 
                 if (randomTeam === "A") {
                   // A espera, B y waiting juegan
@@ -272,59 +287,53 @@ export const useGameStore = create<GameStore>()(
           ...state,
           timer: {
             ...state.timer,
-            endTime: null,
-            pausedTimeLeft: undefined,
+            timeLeft: state.timer.MATCH_DURATION,
+            isRunning: false,
           },
         })),
 
-      startTimer: () =>
+      decrementTimer: () =>
         set((state) => {
-          // Definir tiempo en base al estado del timer
-          const timeToUse =
-            state.timer.pausedTimeLeft !== undefined
-              ? state.timer.pausedTimeLeft
-              : state.timer.MATCH_DURATION;
-
+          const newTimeLeft = Math.max(0, state.timer.timeLeft - 1);
           return {
             ...state,
             timer: {
               ...state.timer,
-              endTime: Date.now() + timeToUse * 1000,
-              //endTime: Date.now() + timeToUse + 6000,
-              pausedTimeLeft: undefined,
+              timeLeft: newTimeLeft,
             },
           };
         }),
+
+      startTimer: () =>
+        set((state) => ({
+          ...state,
+          timer: {
+            ...state.timer,
+            isRunning: true,
+          },
+        })),
 
       stopTimer: () =>
-        set((state) => {
-          const currentTimeLeft = get().getTimeLeft();
-          return {
-            ...state,
-            timer: {
-              ...state.timer,
-              endTime: null,
-              pausedTimeLeft: currentTimeLeft, // Guardar el tiempo restante actual
-            },
-          };
-        }),
+        set((state) => ({
+          ...state,
+          timer: {
+            ...state.timer,
+            isRunning: false,
+          },
+        })),
 
       getTimeLeft: () => {
         const state = get();
-        if (!state.timer.endTime) return state.timer.MATCH_DURATION;
-
-        const timeLeft = Math.ceil((state.timer.endTime - Date.now()) / 1000);
-        return Math.max(0, Math.min(timeLeft, state.timer.MATCH_DURATION));
+        return state.timer.timeLeft;
       },
 
       setIsActive: (active) => {
-        const state = get();
         if (active) {
           get().startTimer();
         } else {
           get().stopTimer();
         }
-        set({ ...state, isActive: active });
+        set((state) => ({ ...state, isActive: active }));
       },
 
       resetGame: () =>
@@ -334,8 +343,8 @@ export const useGameStore = create<GameStore>()(
           isActive: false,
           timer: {
             ...state.timer,
-            endTime: null,
-            pausedTimeLeft: undefined,
+            timeLeft: state.timer.MATCH_DURATION,
+            isRunning: false,
           },
         })),
 
@@ -403,6 +412,254 @@ export const useGameStore = create<GameStore>()(
             team3: [],
           },
         })),
+
+      // Funciones para historial de partidos
+      getLastMatch: () => {
+        const state = get();
+        return state.matchHistory.length > 0 
+          ? state.matchHistory[state.matchHistory.length - 1] 
+          : null;
+      },
+
+      saveMatchToHistory: (result: "A" | "B" | "draw") => {
+        const state = get();
+        
+        const matchRecord: MatchRecord = {
+          teamA: {
+            name: state.activeTeams.teamA.name,
+            members: [...state.activeTeams.teamA.members],
+            score: state.scores.teamA,
+          },
+          teamB: {
+            name: state.activeTeams.teamB.name,
+            members: [...state.activeTeams.teamB.members],
+            score: state.scores.teamB,
+          },
+          waiting: {
+            name: state.activeTeams.waiting.name,
+            members: [...state.activeTeams.waiting.members],
+          },
+          goals: { ...state.currentGoals },
+          result,
+          timestamp: Date.now(),
+        };
+
+        set((state) => ({
+          ...state,
+          matchHistory: [...state.matchHistory, matchRecord],
+        }));
+      },
+
+      editLastMatch: (editedMatch: MatchRecord) => {
+        set((state) => {
+          if (state.matchHistory.length === 0) return state;
+
+          const newHistory = [...state.matchHistory];
+          const lastMatchIndex = newHistory.length - 1;
+          const originalMatch = newHistory[lastMatchIndex];
+          
+          // Actualizar el historial con el partido editado
+          newHistory[lastMatchIndex] = editedMatch;
+
+          // Ahora necesitamos recalcular el estado actual basado en los cambios
+          // Primero, revertir los efectos del partido original
+          const newDailyScores = [...state.dailyScores];
+          const originalResult = originalMatch.result;
+          
+          // Revertir puntajes del partido original
+          if (originalResult === "A") {
+            // El equipo A había ganado con 2 goles
+            const teamAIndex = newDailyScores.findIndex(s => s.name === originalMatch.teamA.name);
+            if (teamAIndex !== -1) {
+              newDailyScores[teamAIndex] = {
+                ...newDailyScores[teamAIndex],
+                points: newDailyScores[teamAIndex].points - 3,
+                wins: newDailyScores[teamAIndex].wins - 1,
+              };
+            }
+          } else if (originalResult === "B") {
+            // El equipo B había ganado con 2 goles
+            const teamBIndex = newDailyScores.findIndex(s => s.name === originalMatch.teamB.name);
+            if (teamBIndex !== -1) {
+              newDailyScores[teamBIndex] = {
+                ...newDailyScores[teamBIndex],
+                points: newDailyScores[teamBIndex].points - 3,
+                wins: newDailyScores[teamBIndex].wins - 1,
+              };
+            }
+          } else if (originalResult === "draw") {
+            // Había sido empate
+            const teamAIndex = newDailyScores.findIndex(s => s.name === originalMatch.teamA.name);
+            const teamBIndex = newDailyScores.findIndex(s => s.name === originalMatch.teamB.name);
+            if (teamAIndex !== -1) {
+              newDailyScores[teamAIndex] = {
+                ...newDailyScores[teamAIndex],
+                points: newDailyScores[teamAIndex].points - 1,
+                draws: newDailyScores[teamAIndex].draws - 1,
+              };
+            }
+            if (teamBIndex !== -1) {
+              newDailyScores[teamBIndex] = {
+                ...newDailyScores[teamBIndex],
+                points: newDailyScores[teamBIndex].points - 1,
+                draws: newDailyScores[teamBIndex].draws - 1,
+              };
+            }
+          }
+
+          // Aplicar los puntajes del partido editado
+          const newResult = editedMatch.result;
+          if (newResult === "A") {
+            // El equipo A gana con 2 goles
+            const teamAIndex = newDailyScores.findIndex(s => s.name === editedMatch.teamA.name);
+            if (teamAIndex !== -1) {
+              newDailyScores[teamAIndex] = {
+                ...newDailyScores[teamAIndex],
+                points: newDailyScores[teamAIndex].points + 3,
+                wins: newDailyScores[teamAIndex].wins + 1,
+              };
+            }
+          } else if (newResult === "B") {
+            // El equipo B gana con 2 goles
+            const teamBIndex = newDailyScores.findIndex(s => s.name === editedMatch.teamB.name);
+            if (teamBIndex !== -1) {
+              newDailyScores[teamBIndex] = {
+                ...newDailyScores[teamBIndex],
+                points: newDailyScores[teamBIndex].points + 3,
+                wins: newDailyScores[teamBIndex].wins + 1,
+              };
+            }
+          } else if (newResult === "draw") {
+            // Empate
+            const teamAIndex = newDailyScores.findIndex(s => s.name === editedMatch.teamA.name);
+            const teamBIndex = newDailyScores.findIndex(s => s.name === editedMatch.teamB.name);
+            if (teamAIndex !== -1) {
+              newDailyScores[teamAIndex] = {
+                ...newDailyScores[teamAIndex],
+                points: newDailyScores[teamAIndex].points + 1,
+                draws: newDailyScores[teamAIndex].draws + 1,
+              };
+            }
+            if (teamBIndex !== -1) {
+              newDailyScores[teamBIndex] = {
+                ...newDailyScores[teamBIndex],
+                points: newDailyScores[teamBIndex].points + 1,
+                draws: newDailyScores[teamBIndex].draws + 1,
+              };
+            }
+          }
+
+          // Actualizar los goles actuales con los del partido editado
+          const newCurrentGoals = { ...state.currentGoals };
+          
+          // Restar goles del partido original
+          Object.keys(originalMatch.goals).forEach(playerId => {
+            if (newCurrentGoals[playerId]) {
+              newCurrentGoals[playerId] = Math.max(0, newCurrentGoals[playerId] - originalMatch.goals[playerId]);
+              if (newCurrentGoals[playerId] === 0) {
+                delete newCurrentGoals[playerId];
+              }
+            }
+          });
+          
+          // Sumar goles del partido editado
+          Object.keys(editedMatch.goals).forEach(playerId => {
+            newCurrentGoals[playerId] = (newCurrentGoals[playerId] || 0) + editedMatch.goals[playerId];
+          });
+
+          // Recalcular la rotación de equipos basada en el nuevo resultado
+          let newActiveTeams = { ...state.activeTeams };
+          let newLastWinner = state.lastWinner;
+          let newLastDraw = state.lastDraw;
+
+          // Si el resultado cambió, necesitamos recalcular quién debería estar jugando
+          if (originalResult !== newResult) {
+            // Revertir a los equipos del partido editado
+            newActiveTeams = {
+              teamA: {
+                name: editedMatch.teamA.name as Team,
+                members: editedMatch.teamA.members,
+              },
+              teamB: {
+                name: editedMatch.teamB.name as Team,
+                members: editedMatch.teamB.members,
+              },
+              waiting: {
+                name: editedMatch.waiting.name as Team,
+                members: editedMatch.waiting.members,
+              },
+            };
+
+            // Aplicar la rotación basada en el nuevo resultado
+            if (newResult === "A") {
+              newActiveTeams = {
+                teamA: newActiveTeams.teamA,
+                teamB: newActiveTeams.waiting,
+                waiting: newActiveTeams.teamB,
+              };
+              newLastWinner = "A";
+              newLastDraw = "";
+            } else if (newResult === "B") {
+              newActiveTeams = {
+                teamA: newActiveTeams.waiting,
+                teamB: newActiveTeams.teamB,
+                waiting: newActiveTeams.teamA,
+              };
+              newLastWinner = "B";
+              newLastDraw = "";
+            } else {
+              // Empate - aplicar lógica de empate
+              if (newLastWinner === "A") {
+                newActiveTeams = {
+                  teamA: newActiveTeams.waiting,
+                  teamB: newActiveTeams.teamB,
+                  waiting: newActiveTeams.teamA,
+                };
+                newLastWinner = "";
+                newLastDraw = "B";
+              } else if (newLastWinner === "B") {
+                newActiveTeams = {
+                  teamA: newActiveTeams.teamA,
+                  teamB: newActiveTeams.waiting,
+                  waiting: newActiveTeams.teamB,
+                };
+                newLastWinner = "";
+                newLastDraw = "A";
+                             } else {
+                 // Rotación determinística para primer empate (evita problemas de hidratación)
+                 const now = Date.now();
+                 const randomTeam = (now % 2) === 0 ? "A" : "B";
+                 if (randomTeam === "A") {
+                   newActiveTeams = {
+                     teamA: newActiveTeams.waiting,
+                     teamB: newActiveTeams.teamB,
+                     waiting: newActiveTeams.teamA,
+                   };
+                   newLastDraw = "B";
+                 } else {
+                   newActiveTeams = {
+                     teamA: newActiveTeams.teamA,
+                     teamB: newActiveTeams.waiting,
+                     waiting: newActiveTeams.teamB,
+                   };
+                   newLastDraw = "A";
+                 }
+                 newLastWinner = "";
+               }
+            }
+          }
+
+          return {
+            ...state,
+            matchHistory: newHistory,
+            dailyScores: newDailyScores,
+            currentGoals: newCurrentGoals,
+            activeTeams: newActiveTeams,
+            lastWinner: newLastWinner,
+            lastDraw: newLastDraw,
+          };
+        });
+      },
 
       finalizeTriangular: async () => {
         const state = get();
@@ -474,6 +731,7 @@ export const useGameStore = create<GameStore>()(
         set((state) => ({
           ...state,
           currentGoals: {},
+          matchHistory: [], // Limpiar historial al finalizar triangular
           dailyScores: [
             { name: "Equipo 1", points: 0, wins: 0, normalWins: 0, draws: 0 },
             { name: "Equipo 2", points: 0, wins: 0, normalWins: 0, draws: 0 },
@@ -486,7 +744,8 @@ export const useGameStore = create<GameStore>()(
           isActive: false,
           timer: {
             ...state.timer,
-            endTime: null,
+            timeLeft: state.timer.MATCH_DURATION,
+            isRunning: false,
           },
         }));
       },
@@ -503,6 +762,9 @@ export const useGameStore = create<GameStore>()(
         timer: state.timer,
         teamBuilder: state.teamBuilder,
         currentGoals: state.currentGoals,
+        matchHistory: state.matchHistory,
+        lastWinner: state.lastWinner,
+        lastDraw: state.lastDraw,
       }),
     }
   )

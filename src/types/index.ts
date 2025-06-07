@@ -51,9 +51,9 @@ export interface TeamInTriangular {
 
 
 export interface TimerState {
-  endTime: number | null;
+  timeLeft: number;
   MATCH_DURATION: number;
-  pausedTimeLeft?: number; // Tiempo en el que el timer se pausa
+  isRunning: boolean;
 }
 
 export interface GameTeam {
@@ -67,6 +67,15 @@ export interface TeamBuilderState {
   team2: Player[];
   team3: Player[];
   [key: string]: Player[];
+}
+
+export interface MatchRecord {
+  teamA: { name: string; members: TeamMember[]; score: number };
+  teamB: { name: string; members: TeamMember[]; score: number };
+  waiting: { name: string; members: TeamMember[] };
+  goals: { [playerId: string]: number };
+  result: "A" | "B" | "draw";
+  timestamp: number;
 }
 
 export interface GameState {
@@ -87,6 +96,7 @@ export interface GameState {
   lastWinner: string;
   lastDraw: string;
   selectedPlayers: Player[];
+  matchHistory: MatchRecord[];
 }
 
 // Interfaces para la API y Backend

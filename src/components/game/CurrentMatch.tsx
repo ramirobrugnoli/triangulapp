@@ -4,11 +4,13 @@ import { useGameStore } from "@/store/gameStore";
 import { GameTimer } from "./GameTimer";
 import { ScoreBoard } from "./ScoreBoard";
 import { DailyScoreTable } from "./DailyScoreTable";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { GoalScorerModal } from "./GoalScorerModal";
 import { DailyScorersTable } from "./DailyScorersTable";
+import { EditLastMatchModal } from "./EditLastMatchModal";
 import { toast, ToastContainer } from "react-toastify";
 import { getColorByTeam } from "@/lib/helpers/helpers";
+import { MatchRecord } from "@/types";
 
 function GoalIndicator({ goals }: { goals: number }) {
   if (goals === 0) return null;
@@ -29,12 +31,23 @@ export function CurrentMatch() {
     setIsActive,
     startTimer,
     stopTimer,
+    resetTimer,
     registerGoal,
     finalizeTriangular,
     currentGoals,
+    getLastMatch,
+    editLastMatch,
   } = useGameStore();
 
-  const handleStartStop = () => {
+  // Iniciar automáticamente el timer al montar el componente
+  useEffect(() => {
+    if (!isActive) {
+      setIsActive(true);
+      startTimer();
+    }
+  }, [isActive, setIsActive, startTimer]); // Solo ejecutar cuando cambien estas dependencias
+
+  const handleToggleTimer = () => {
     if (!isActive) {
       setIsActive(true);
       startTimer();
@@ -44,13 +57,25 @@ export function CurrentMatch() {
     }
   };
 
+  const handleResetTimer = () => {
+    resetTimer();
+    // Reiniciar automáticamente después del reset
+    setIsActive(true);
+    startTimer();
+  };
+
   const timerRef = useRef<{ resetTimer: () => void } | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<"A" | "B" | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const notify = (message: string) => toast(message);
 
   const handleTimeUp = () => {
+    // Pausar el timer primero
+    setIsActive(false);
+    stopTimer();
+    
     if (scores.teamA > scores.teamB) {
       updateDailyScore(activeTeams.teamA.name, "normalWin");
       rotateTeams("A");
@@ -79,10 +104,14 @@ export function CurrentMatch() {
     registerGoal(playerId);
 
     if (newScore === 2) {
+      // Pausar el timer primero
+      setIsActive(false);
+      stopTimer();
+      
       updateDailyScore(activeTeams[`team${team}`].name, "win");
       rotateTeams(team);
       resetGame();
-      timerRef.current?.resetTimer();
+      // No llamar resetTimer aquí, rotateTeams ya maneja el historial
     }
 
     setModalOpen(false);
@@ -103,6 +132,20 @@ export function CurrentMatch() {
     }
   };
 
+  const handleEditLastMatch = () => {
+    const lastMatch = getLastMatch();
+    if (lastMatch) {
+      setEditModalOpen(true);
+    } else {
+      notify("No hay partidos anteriores para editar");
+    }
+  };
+
+  const handleSaveEditedMatch = (editedMatch: MatchRecord) => {
+    editLastMatch(editedMatch);
+    notify("Partido editado correctamente. Los equipos y puntajes se han actualizado.");
+  };
+
   return (
     <>
       <ToastContainer
@@ -111,17 +154,12 @@ export function CurrentMatch() {
         theme="dark"
         closeOnClick={true}
       />
-      <button
-        onClick={handleStartStop}
-        className={`w-full py-3 rounded-lg ${
-          isActive
-            ? "bg-red-600 hover:bg-red-700"
-            : "bg-green-600 hover:bg-green-700"
-        }`}
-      >
-        {isActive ? "Pausar Partido" : "Iniciar Partido"}
-      </button>
-      <GameTimer onTimeUp={handleTimeUp} isActive={isActive} />
+      <GameTimer 
+        onTimeUp={handleTimeUp} 
+        isActive={isActive} 
+        onToggleTimer={handleToggleTimer}
+        onResetTimer={handleResetTimer}
+      />
 
       <ScoreBoard
         teamA={getColorByTeam(activeTeams.teamA.name)}
@@ -138,6 +176,13 @@ export function CurrentMatch() {
         players={selectedTeam ? activeTeams[`team${selectedTeam}`].members : []}
         onClose={() => setModalOpen(false)}
         onSelect={handleGoalConfirm}
+      />
+
+      <EditLastMatchModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        lastMatch={getLastMatch()}
+        onSave={handleSaveEditedMatch}
       />
 
       <div className="grid grid-cols-2 gap-4">
@@ -195,17 +240,31 @@ export function CurrentMatch() {
           <DailyScorersTable />
         </div>
 
-        <button
-          onClick={handleFinishTriangular}
-          disabled={isSubmitting}
-          className={`w-full py-3 rounded-lg ${
-            isSubmitting
-              ? "bg-gray-700 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700"
-          }`}
-        >
-          Finalizar Triangular
-        </button>
+        <div className="space-y-3">
+          <button
+            onClick={handleEditLastMatch}
+            disabled={!getLastMatch()}
+            className={`w-full py-2 rounded-lg ${
+              !getLastMatch()
+                ? "bg-gray-700 cursor-not-allowed text-gray-500"
+                : "bg-yellow-600 hover:bg-yellow-700"
+            }`}
+          >
+            Editar Último Partido
+          </button>
+          
+          <button
+            onClick={handleFinishTriangular}
+            disabled={isSubmitting}
+            className={`w-full py-3 rounded-lg ${
+              isSubmitting
+                ? "bg-gray-700 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
+          >
+            Finalizar Triangular
+          </button>
+        </div>
       </div>
     </>
   );

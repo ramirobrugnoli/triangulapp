@@ -15,6 +15,17 @@ export const playerService = {
       throw error;
     }
   },
+
+  async getSimplePlayers(): Promise<Player[]> {
+    try {
+      const response = await fetch(`${API_BASE}/players/simple`);
+      if (!response.ok) throw new Error("Network response was not ok");
+      return response.json();
+    } catch (error) {
+      console.error("Error fetching simple players:", error);
+      throw error;
+    }
+  },
   
   async getPlayerStatsByIds(playerIds: string[]): Promise<Player[]> {
     try {
