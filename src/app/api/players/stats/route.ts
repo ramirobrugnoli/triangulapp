@@ -1,5 +1,6 @@
 import { prisma } from "../../../../lib/prisma";
 import { NextResponse } from "next/server";
+import { PlayerStatsService } from "@/lib/services/playerStats";
 
 export async function POST(request: Request): Promise<Response> {
   try {
@@ -33,31 +34,32 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
+    // Obtener jugadores con estadísticas de triangulares
     const players = await prisma.player.findMany({
       where: {
         id: {
           in: playerIds
+        }
+      },
+      include: {
+        triangulars: {
+          include: {
+            triangular: {
+              include: {
+                teams: true
+              }
+            }
+          }
         }
       }
     });
 
     console.log(`Encontrados ${players.length} jugadores`);
 
-    const playerStats = players.map((player) => ({
-      id: player.id,
-      name: player.name,
-      stats: {
-        matches: player.matches,
-        goals: player.goals,
-        wins: player.wins,
-        draws: player.draws,
-        losses: player.losses,
-        points: player.wins * 3 + player.draws,
-        winPercentage: player.matches > 0 
-          ? Math.round((player.wins / player.matches) * 100) 
-          : 0,
-      }
-    }));
+    // Usar el servicio centralizado para procesar las estadísticas
+    const playerStats = PlayerStatsService.processMultiplePlayers(players);
+    
+    console.log(playerStats[0]);
 
     return NextResponse.json(playerStats);
   } catch (error) {

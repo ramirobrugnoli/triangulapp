@@ -19,6 +19,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
+import { PlayerStatsService } from "@/lib/services/playerStats";
 
 interface TeamBuilderState {
   available: Player[];
@@ -127,7 +128,7 @@ function DraggablePlayer({
 
   // Verificar si el jugador actualmente arrastrado viene de "available"
   const isDraggedFromAvailable = draggedPlayer && findPlayerTeam(draggedPlayer.id) === "available";
-
+  
   // Solo mostrar indicador de intercambio si el jugador arrastrado NO viene de "available"
   const showSwapIndicator = isOver && !isDragging && !isDraggedFromAvailable;
 
@@ -138,14 +139,13 @@ function DraggablePlayer({
       {...listeners}
       {...attributes}
       className={`
-        w-full p-3 rounded-lg text-sm transition-all h-[45px]
+        w-full p-3 rounded-lg text-sm transition-all h-[45px] flex items-center justify-center
         ${isDragging ? "opacity-50 z-50" : ""}
         ${isSelected ? "bg-green-600" : "bg-gray-700 hover:bg-gray-600"}
         ${showSwapIndicator ? "ring-2 ring-yellow-400 bg-yellow-600" : ""}
         ${isOver && !isDragging && isDraggedFromAvailable ? "ring-2 ring-blue-400 bg-blue-600" : ""}
         cursor-grab active:cursor-grabbing
         touch-none select-none
-        min-h-[44px] flex items-center justify-center
       `}
     >
       {player.name}
@@ -224,6 +224,7 @@ export function TeamsBuilder() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [playerRatings, setPlayerRatings] = useState<{ [playerId: string]: number }>({});
   const [draggedPlayer, setDraggedPlayer] = useState<Player | null>(null);
+  const [mounted, setMounted] = useState(false);
   const { setTeams: setGlobalTeams, selectedPlayers } = useGameStore();
   const router = useRouter();
   const notify = (message: string) => toast(message);
@@ -239,6 +240,10 @@ export function TeamsBuilder() {
   );
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     // Usando los jugadores seleccionados previamente en lugar de cargarlos del servicio
     if (selectedPlayers.length === 0) {
       // Si no hay jugadores seleccionados, redirigir a la pantalla de selección
@@ -251,7 +256,7 @@ export function TeamsBuilder() {
 
     setTeams((prev) => ({ ...prev, available: selectedPlayers }));
     setLoading(false);
-
+    
     // Cargar ratings de jugadores al inicializar
     loadPlayerRatings();
   }, [selectedPlayers, router]);
@@ -261,15 +266,8 @@ export function TeamsBuilder() {
       const playerIds = selectedPlayers.map(player => player.id);
       const playerStats = await api.players.getPlayerStatsByIds(playerIds);
 
-      const ratings: { [playerId: string]: number } = {};
-      playerStats.forEach(player => {
-        const stats = player.stats;
-        const goalsPerMatch = stats.matches > 0 ? stats.goals / stats.matches : 0;
-        const winPercentage = stats.winPercentage || 0;
-        const rating = (stats.points * 0.4) + (winPercentage * 0.35) + (goalsPerMatch * 25);
-        ratings[player.id] = Math.round(rating * 100) / 100;
-      });
-
+      // Usar el servicio centralizado para calcular ratings
+      const ratings = PlayerStatsService.calculatePlayersRatings(playerStats);
       setPlayerRatings(ratings);
     } catch (error) {
       console.error("Error al cargar ratings:", error);
@@ -352,25 +350,29 @@ export function TeamsBuilder() {
       // Intercambiar jugadores (solo si ambos están en equipos)
       setTeams((prev) => {
         const newTeams = { ...prev };
+        
+        // Encontrar ambos jugadores y sus índices
+        const draggedPlayerIndex = newTeams[sourceTeam].findIndex(p => p.id === draggedPlayerId);
+        const targetPlayerIndex = newTeams[targetTeam].findIndex(p => p.id === targetPlayerId);
+        const draggedPlayer = newTeams[sourceTeam][draggedPlayerIndex];
+        const targetPlayer = newTeams[targetTeam][targetPlayerIndex];
+        
+        if (!draggedPlayer || !targetPlayer || draggedPlayerIndex === -1 || targetPlayerIndex === -1) return prev;
 
-        // Encontrar ambos jugadores
-        const draggedPlayer = newTeams[sourceTeam].find(p => p.id === draggedPlayerId);
-        const targetPlayer = newTeams[targetTeam].find(p => p.id === targetPlayerId);
-
-        if (!draggedPlayer || !targetPlayer) return prev;
-
-        // Remover ambos jugadores de sus equipos actuales
-        newTeams[sourceTeam] = newTeams[sourceTeam].filter(p => p.id !== draggedPlayerId);
-        newTeams[targetTeam] = newTeams[targetTeam].filter(p => p.id !== targetPlayerId);
-
-        // Intercambiar posiciones
-        newTeams[targetTeam] = [...newTeams[targetTeam], draggedPlayer];
-        newTeams[sourceTeam] = [...newTeams[sourceTeam], targetPlayer];
+        // Si son del mismo equipo, intercambiar posiciones dentro del mismo equipo
+        if (sourceTeam === targetTeam) {
+          // Intercambio dentro del mismo equipo
+          newTeams[sourceTeam][draggedPlayerIndex] = targetPlayer;
+          newTeams[sourceTeam][targetPlayerIndex] = draggedPlayer;
+        } else {
+          // Intercambio entre equipos diferentes - mantener posiciones exactas
+          newTeams[sourceTeam][draggedPlayerIndex] = targetPlayer;
+          newTeams[targetTeam][targetPlayerIndex] = draggedPlayer;
+        }
 
         return newTeams;
       });
 
-      toast.success(`${draggedPlayer?.name} ↔ ${Object.values(teams).flat().find(p => p.id === targetPlayerId)?.name} intercambiados`);
       setSelectedPlayer(null);
       return;
     }
@@ -491,30 +493,24 @@ export function TeamsBuilder() {
     }
 
     try {
-      toast.info("Analizando estadísticas y formando equipos balanceados...");
-
+      toast.info("Analizando estadísticas y formando equipos balanceados...", {
+        autoClose: 1000,
+      });
+      
       // Obtener estadísticas de todos los jugadores
       const playerIds = allPlayers.map(player => player.id);
       const playerStats = await api.players.getPlayerStatsByIds(playerIds);
 
-      // Calcular rating para cada jugador basado en sus estadísticas
-      const playersWithRating = playerStats.map(player => {
-        const stats = player.stats;
-        // Rating basado en: puntos (peso 40%), % victorias (peso 35%), goles por partido (peso 25%)
-        const goalsPerMatch = stats.matches > 0 ? stats.goals / stats.matches : 0;
-        const winPercentage = stats.winPercentage || 0;
-        const rating = (stats.points * 0.4) + (winPercentage * 0.35) + (goalsPerMatch * 25);
-
-        return {
-          ...player,
-          rating: Math.round(rating * 100) / 100
-        };
-      });
+      // Calcular rating para cada jugador usando el servicio centralizado
+      const playersWithRating: (Player & { rating: number })[] = playerStats.map(player => ({
+        ...player,
+        rating: PlayerStatsService.calculatePlayerRating(player.stats)
+      }));
 
       // Ordenar jugadores por rating (de mayor a menor)
-      playersWithRating.sort((a, b) => b.rating - a.rating);
+      const sortedPlayers = playersWithRating.sort((a, b) => b.rating - a.rating);
 
-      console.log("Jugadores ordenados por rating:", playersWithRating.map(p => ({
+      console.log("Jugadores ordenados por rating:", sortedPlayers.map(p => ({
         name: p.name,
         rating: p.rating,
         stats: p.stats
@@ -530,7 +526,7 @@ export function TeamsBuilder() {
       let teamIndex = 0;
       let direction = 1;
 
-      playersWithRating.forEach((player, index) => {
+      sortedPlayers.forEach((player, index) => {
         // Encontrar el jugador original sin el rating
         const originalPlayer = allPlayers.find(p => p.id === player.id);
         if (originalPlayer) {
@@ -539,7 +535,7 @@ export function TeamsBuilder() {
 
         // Cambiar al siguiente equipo
         teamIndex += direction;
-
+        
         // Si llegamos al final o al principio, cambiar dirección
         if (teamIndex >= teams_array.length) {
           teamIndex = teams_array.length - 1;
@@ -552,17 +548,17 @@ export function TeamsBuilder() {
 
       // Calcular ratings totales de cada equipo para mostrar el balance
       const team1Rating = team1.reduce((sum, player) => {
-        const playerWithRating = playersWithRating.find(p => p.id === player.id);
+        const playerWithRating = sortedPlayers.find(p => p.id === player.id);
         return sum + (playerWithRating?.rating || 0);
       }, 0);
 
       const team2Rating = team2.reduce((sum, player) => {
-        const playerWithRating = playersWithRating.find(p => p.id === player.id);
+        const playerWithRating = sortedPlayers.find(p => p.id === player.id);
         return sum + (playerWithRating?.rating || 0);
       }, 0);
 
       const team3Rating = team3.reduce((sum, player) => {
-        const playerWithRating = playersWithRating.find(p => p.id === player.id);
+        const playerWithRating = sortedPlayers.find(p => p.id === player.id);
         return sum + (playerWithRating?.rating || 0);
       }, 0);
 
@@ -580,8 +576,9 @@ export function TeamsBuilder() {
         team3
       });
 
+      // Cerrar el toast de análisis y mostrar el resultado
       toast.success(`Equipos balanceados creados. Ratings: T1(${Math.round(team1Rating)}), T2(${Math.round(team2Rating)}), T3(${Math.round(team3Rating)})`);
-
+      
     } catch (error) {
       console.error("Error al sugerir equipos:", error);
       toast.error("Error al formar equipos basados en estadísticas");
@@ -645,10 +642,10 @@ export function TeamsBuilder() {
     </DroppableTeam>
   );
 
-  if (loading) {
+  // No renderizar drag and drop hasta que esté mounted
+  if (!mounted || loading) {
     return (
       <>
-        {/* que hace esto aca chabon JAJAJA - https://www.youtube.com/watch?v=RDJyrJb-77E */}
         <ToastContainer
           autoClose={3000}
           position="top-right"

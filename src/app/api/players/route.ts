@@ -1,6 +1,7 @@
 // app/api/players/route.ts
 import { prisma } from "../../../lib/prisma";
 import { NextResponse } from "next/server";
+import { PlayerStatsService } from "@/lib/services/playerStats";
 
 export async function GET(): Promise<Response> {
   try {
@@ -22,23 +23,25 @@ export async function GET(): Promise<Response> {
       );
     }
 
-    // Si llegamos aquí, la conexión está bien
-    const players = await prisma.player.findMany();
+    // Obtener jugadores con sus triangulares y estadísticas de equipos
+    const players = await prisma.player.findMany({
+      include: {
+        triangulars: {
+          include: {
+            triangular: {
+              include: {
+                teams: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    
     console.log(`Encontrados ${players.length} jugadores`);
 
-    // Transformar la respuesta para que coincida con la estructura esperada
-    const formattedPlayers = players.map((player) => ({
-      id: player.id,
-      name: player.name,
-      stats: {
-        matches: player.matches,
-        goals: player.goals,
-        wins: player.wins,
-        draws: player.draws,
-        losses: player.losses,
-        points: player.wins * 3 + player.draws, // Calculamos los puntos
-      },
-    }));
+    // Usar el servicio centralizado para procesar las estadísticas
+    const formattedPlayers = PlayerStatsService.processMultiplePlayers(players);
 
     return NextResponse.json(formattedPlayers);
   } catch (error) {

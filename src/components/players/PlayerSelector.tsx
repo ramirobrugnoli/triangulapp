@@ -1,4 +1,3 @@
-// Guarda este archivo como: components/PlayerSelector.tsx
 "use client";
 
 import { Player } from "@/types";
@@ -21,8 +20,9 @@ export function PlayerSelector() {
   useEffect(() => {
     const fetchPlayers = async () => {
       try {
-        const data = await playerService.getAllPlayers();
-        setAllPlayers(data);
+        const players = await playerService.getAllPlayers();
+        const sortedPlayers = players.sort((a, b) => a.name.localeCompare(b.name));
+        setAllPlayers(sortedPlayers);
       } catch (error) {
         console.error("Error:", error);
         toast.error("Error al cargar los jugadores");

@@ -10,6 +10,12 @@ export interface PlayerStats {
   points: number;
   normalWins?: number;
   winPercentage?: number;
+  triangularsPlayed?: number;
+  triangularWins?: number;
+  triangularSeconds?: number;
+  triangularThirds?: number;
+  triangularPoints?: number;
+  triangularWinPercentage?: number;
 }
 
 export interface Player {
@@ -31,6 +37,18 @@ export interface TeamScore {
   normalWins: number;
   draws: number;
 }
+
+export interface TeamInTriangular {
+  id: string;
+  wins: number;
+  draws: number;
+  triangularId: string;
+  normalWins: number;
+  points: number;
+  teamName: string;
+  position: number;
+}
+
 
 export interface TimerState {
   endTime: number | null;

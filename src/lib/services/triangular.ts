@@ -82,27 +82,38 @@ export const triangularService = {
             data: playerTriangularData,
           });
 
-          // 3. Actualizar las estadísticas de los jugadores en una sola operación
-          for (const playerId of Object.keys(result.scorers)) {
+          // 3. Obtener todos los jugadores que participaron en el triangular
+          const allPlayerIds = [
+            ...result.teams.first.players,
+            ...result.teams.second.players,
+            ...result.teams.third.players,
+          ];
+
+          // 4. Calcular partidos jugados por cada jugador
+          // En un triangular, cada equipo juega 2 partidos (contra los otros 2 equipos)
+          const matchesPerPlayer = 2;
+
+          // 5. Actualizar las estadísticas de todos los jugadores que participaron
+          for (const playerId of allPlayerIds) {
+            // Determinar en qué equipo jugó el jugador y sus estadísticas
+            let playerTeamStats;
+            if (result.teams.first.players.includes(playerId)) {
+              playerTeamStats = result.teams.first;
+            } else if (result.teams.second.players.includes(playerId)) {
+              playerTeamStats = result.teams.second;
+            } else {
+              playerTeamStats = result.teams.third;
+            }
+
             await tx.player.update({
               where: { id: playerId },
               data: {
                 goals: { increment: result.scorers[playerId] || 0 },
-                matches: { increment: 1 },
-                wins: {
-                  increment: result.teams.first.players.includes(playerId)
-                    ? result.teams.first.wins
-                    : result.teams.second.players.includes(playerId)
-                    ? result.teams.second.wins
-                    : result.teams.third.wins,
-                },
-                draws: {
-                  increment: result.teams.first.players.includes(playerId)
-                    ? result.teams.first.draws
-                    : result.teams.second.players.includes(playerId)
-                    ? result.teams.second.draws
-                    : result.teams.third.draws,
-                },
+                matches: { increment: matchesPerPlayer },
+                wins: { increment: playerTeamStats.wins },
+                draws: { increment: playerTeamStats.draws },
+                // Las derrotas se calculan como: partidos jugados - victorias - empates
+                losses: { increment: matchesPerPlayer - playerTeamStats.wins - playerTeamStats.draws },
               },
             });
           }

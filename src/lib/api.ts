@@ -39,6 +39,29 @@ export const playerService = {
       throw error;
     }
   },
+
+  async recalculateStats(): Promise<{ success: boolean; message: string; triangularsProcessed: number }> {
+    try {
+      const response = await fetch(`${API_BASE}/players/recalculate-stats`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ message: "Error desconocido" }));
+        throw new Error(errorData.message || "Error al recalcular estadísticas");
+      }
+      
+      return response.json();
+    } catch (error) {
+      console.error("Error recalculating player statistics:", error);
+      throw error;
+    }
+  },
 };
 
 export const triangularService = {
