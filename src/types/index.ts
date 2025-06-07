@@ -9,6 +9,13 @@ export interface PlayerStats {
   losses: number;
   points: number;
   normalWins?: number;
+  winPercentage?: number;
+  triangularsPlayed?: number;
+  triangularWins?: number;
+  triangularSeconds?: number;
+  triangularThirds?: number;
+  triangularPoints?: number;
+  triangularWinPercentage?: number;
 }
 
 export interface Player {
@@ -30,6 +37,18 @@ export interface TeamScore {
   normalWins: number;
   draws: number;
 }
+
+export interface TeamInTriangular {
+  id: string;
+  wins: number;
+  draws: number;
+  triangularId: string;
+  normalWins: number;
+  points: number;
+  teamName: string;
+  position: number;
+}
+
 
 export interface TimerState {
   endTime: number | null;
@@ -166,4 +185,26 @@ export interface PlayerResponse {
     triangularId: string;
     stats: PlayerTriangularStats;
   }[];
+}
+
+// Interfaz para triangulares jugados por un jugador específico
+export interface PlayerTriangularHistory {
+  id: string;
+  date: string;
+  champion: string;
+  playerTeam: Team;
+  position: number;
+  points: number;
+  wins: number;
+  draws: number;
+  goals: number;
+  teams: {
+    teamName: string;
+    points: number;
+    position: number;
+    wins: number;
+    normalWins: number;
+    draws: number;
+  }[];
+  teamPlayers: Record<string, { id: string; name: string }[]>;
 }

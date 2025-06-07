@@ -1,18 +1,23 @@
 // src/app/historial/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { TriangularHistory } from "@/types";
 import { api } from "@/lib/api";
 import { getColorByTeam } from "@/lib/helpers/helpers";
 
-export default function HistorialPage() {
+function HistorialContent() {
+  const searchParams = useSearchParams();
+  const triangularId = searchParams.get('triangularId');
+  
   const [triangularHistory, setTriangularHistory] = useState<
     TriangularHistory[]
   >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentTriangularIndex, setCurrentTriangularIndex] = useState(0);
+  const [highlightedTriangular, setHighlightedTriangular] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchTriangularHistory = async () => {
@@ -21,6 +26,15 @@ export default function HistorialPage() {
         const history = await api.triangular.getTriangularHistory();
         setTriangularHistory(history);
         setError(null);
+        
+        // Si hay un triangularId en la URL, buscar y mostrar ese triangular
+        if (triangularId) {
+          const triangularIndex = history.findIndex(t => t.id === triangularId);
+          if (triangularIndex !== -1) {
+            setCurrentTriangularIndex(triangularIndex);
+            setHighlightedTriangular(triangularId);
+          }
+        }
       } catch (err) {
         console.error("Error fetching triangular history:", err);
         setError("Error al cargar el historial de triangulares");
@@ -30,7 +44,7 @@ export default function HistorialPage() {
     };
 
     fetchTriangularHistory();
-  }, []);
+  }, [triangularId]);
 
   if (loading) {
     return (
@@ -93,9 +107,31 @@ export default function HistorialPage() {
     );
   };
 
+  const clearHighlight = () => {
+    setHighlightedTriangular(null);
+    // Remover el parámetro de la URL
+    const url = new URL(window.location.href);
+    url.searchParams.delete('triangularId');
+    window.history.replaceState({}, '', url.toString());
+  };
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Historial de Triangulares</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Historial de Triangulares</h1>
+        {highlightedTriangular && (
+          <div className="bg-green-900 text-green-200 px-3 py-1 rounded-lg text-sm flex items-center space-x-2">
+            <span>📍 Triangular seleccionado desde estadísticas</span>
+            <button
+              onClick={clearHighlight}
+              className="text-green-400 hover:text-green-300 ml-2"
+              title="Limpiar selección"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Navegación entre triangulares */}
       <div className="flex justify-between items-center">
@@ -117,7 +153,7 @@ export default function HistorialPage() {
       </div>
 
       {/* Detalles del triangular */}
-      <div className="bg-gray-900 p-6 rounded-lg">
+      <div className={`p-6 rounded-lg ${highlightedTriangular === currentTriangular.id ? 'bg-green-900 border-2 border-green-500' : 'bg-gray-900'}`}>
         <div className="mb-4">
           <h2 className="text-xl font-bold text-green-500 mb-1">
             Triangular #{currentTriangular.id.substring(0, 8)}
@@ -252,5 +288,17 @@ export default function HistorialPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function HistorialPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex justify-center items-center h-48">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-500"></div>
+      </div>
+    }>
+      <HistorialContent />
+    </Suspense>
   );
 }
