@@ -5,6 +5,7 @@ import { useStatsStore } from "@/store/statsStore";
 import { useRouter } from "next/navigation";
 import { PlayerStatsCharts } from "@/components/stats/PlayerStatsCharts";
 import { PlayerSelector as StatsPlayerSelector } from "@/components/stats/StatsPlayerSelector";
+import { PlayerTriangularHistory } from "@/components/stats/PlayerTriangularHistory";
 import { Player } from "@/types";
 import { api } from "@/lib/api";
 
@@ -92,6 +93,14 @@ export default function EstadisticasIndividualesPage() {
         <PlayerStatsCharts 
           player={selectedPlayer}
           allPlayers={playersWithStats}
+        />
+      )}
+
+      {/* Historial de triangulares del jugador seleccionado */}
+      {selectedPlayer && (
+        <PlayerTriangularHistory 
+          playerId={selectedPlayer.id}
+          playerName={selectedPlayer.name}
         />
       )}
     </div>

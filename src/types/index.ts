@@ -186,3 +186,25 @@ export interface PlayerResponse {
     stats: PlayerTriangularStats;
   }[];
 }
+
+// Interfaz para triangulares jugados por un jugador específico
+export interface PlayerTriangularHistory {
+  id: string;
+  date: string;
+  champion: string;
+  playerTeam: Team;
+  position: number;
+  points: number;
+  wins: number;
+  draws: number;
+  goals: number;
+  teams: {
+    teamName: string;
+    points: number;
+    position: number;
+    wins: number;
+    normalWins: number;
+    draws: number;
+  }[];
+  teamPlayers: Record<string, { id: string; name: string }[]>;
+}
