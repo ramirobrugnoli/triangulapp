@@ -4,7 +4,7 @@ import { useGameStore } from "@/store/gameStore";
 import { GameTimer } from "./GameTimer";
 import { ScoreBoard } from "./ScoreBoard";
 import { DailyScoreTable } from "./DailyScoreTable";
-import { useRef, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { GoalScorerModal } from "./GoalScorerModal";
 import { DailyScorersTable } from "./DailyScorersTable";
 import { EditLastMatchModal } from "./EditLastMatchModal";
@@ -47,16 +47,6 @@ export function CurrentMatch() {
     }
   }, [isActive, setIsActive, startTimer]); // Solo ejecutar cuando cambien estas dependencias
 
-  const handleToggleTimer = () => {
-    if (!isActive) {
-      setIsActive(true);
-      startTimer();
-    } else {
-      setIsActive(false);
-      stopTimer();
-    }
-  };
-
   const handleResetTimer = () => {
     resetTimer();
     // Reiniciar automáticamente después del reset
@@ -64,7 +54,6 @@ export function CurrentMatch() {
     startTimer();
   };
 
-  const timerRef = useRef<{ resetTimer: () => void } | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<"A" | "B" | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -157,7 +146,6 @@ export function CurrentMatch() {
       <GameTimer 
         onTimeUp={handleTimeUp} 
         isActive={isActive} 
-        onToggleTimer={handleToggleTimer}
         onResetTimer={handleResetTimer}
       />
 

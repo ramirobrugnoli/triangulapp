@@ -7,11 +7,10 @@ import Timer from '@/components/ui/Timer';
 interface GameTimerProps {
   onTimeUp: () => void;
   isActive: boolean;
-  onToggleTimer: () => void;
   onResetTimer: () => void;
 }
 
-export function GameTimer({ onTimeUp, isActive, onToggleTimer, onResetTimer }: GameTimerProps) {
+export function GameTimer({ onTimeUp, isActive, onResetTimer }: GameTimerProps) {
   const { getTimeLeft, decrementTimer } = useGameStore();
   const [timeLeft, setTimeLeft] = useState(getTimeLeft());
   const [mounted, setMounted] = useState(false);
@@ -59,7 +58,7 @@ export function GameTimer({ onTimeUp, isActive, onToggleTimer, onResetTimer }: G
         <Timer
           initialMinutes={7}
           onTimeUp={onTimeUp}
-          onToggle={onToggleTimer}
+          isActive={isActive}
           onReset={onResetTimer}
           className="scale-75 transform origin-center"
         />
