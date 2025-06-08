@@ -37,6 +37,7 @@ export function CurrentMatch() {
     currentGoals,
     getLastMatch,
     editLastMatch,
+    saveMatchToHistory,
   } = useGameStore();
 
   // Iniciar automáticamente el timer al montar el componente
@@ -58,24 +59,38 @@ export function CurrentMatch() {
   const [selectedTeam, setSelectedTeam] = useState<"A" | "B" | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const notify = (message: string) => toast(message);
+
+  // Set mounted to true after component mounts to avoid hydration issues
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleTimeUp = () => {
     // Pausar el timer primero
     setIsActive(false);
     stopTimer();
     
+    // Determinar el resultado del partido
+    let result: "A" | "B" | "draw";
     if (scores.teamA > scores.teamB) {
+      result = "A";
       updateDailyScore(activeTeams.teamA.name, "normalWin");
-      rotateTeams("A");
     } else if (scores.teamB > scores.teamA) {
+      result = "B";
       updateDailyScore(activeTeams.teamB.name, "normalWin");
-      rotateTeams("B");
     } else {
+      result = "draw";
       updateDailyScore(activeTeams.teamA.name, "draw");
       updateDailyScore(activeTeams.teamB.name, "draw");
-      rotateTeams("draw");
     }
+    
+    // Guardar el partido en el historial ANTES de rotar equipos
+    saveMatchToHistory(result);
+    
+    // Rotar equipos
+    rotateTeams(result);
     resetGame();
   };
 
@@ -97,10 +112,12 @@ export function CurrentMatch() {
       setIsActive(false);
       stopTimer();
       
+      // Guardar el partido en el historial ANTES de rotar equipos
+      saveMatchToHistory(team);
+      
       updateDailyScore(activeTeams[`team${team}`].name, "win");
       rotateTeams(team);
       resetGame();
-      // No llamar resetTimer aquí, rotateTeams ya maneja el historial
     }
 
     setModalOpen(false);
@@ -132,8 +149,10 @@ export function CurrentMatch() {
 
   const handleSaveEditedMatch = (editedMatch: MatchRecord) => {
     editLastMatch(editedMatch);
-    notify("Partido editado correctamente. Los equipos y puntajes se han actualizado.");
+    notify("Último partido editado correctamente. Se han actualizado los puntajes y goleadores.");
   };
+
+  const lastMatch = mounted ? getLastMatch() : null;
 
   return (
     <>
@@ -169,7 +188,7 @@ export function CurrentMatch() {
       <EditLastMatchModal
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}
-        lastMatch={getLastMatch()}
+        lastMatch={lastMatch}
         onSave={handleSaveEditedMatch}
       />
 
@@ -231,9 +250,9 @@ export function CurrentMatch() {
         <div className="space-y-3">
           <button
             onClick={handleEditLastMatch}
-            disabled={!getLastMatch()}
+            disabled={!lastMatch}
             className={`w-full py-2 rounded-lg ${
-              !getLastMatch()
+              !lastMatch
                 ? "bg-gray-700 cursor-not-allowed text-gray-500"
                 : "bg-yellow-600 hover:bg-yellow-700"
             }`}

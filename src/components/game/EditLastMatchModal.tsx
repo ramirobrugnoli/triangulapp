@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { MatchRecord } from "@/types";
+import { getColorByTeam } from "@/lib/helpers/helpers";
 
 interface EditLastMatchModalProps {
   isOpen: boolean;
@@ -25,7 +26,19 @@ export function EditLastMatchModal({
         teamA: lastMatch.teamA.score,
         teamB: lastMatch.teamB.score,
       });
-      setEditedGoals({ ...lastMatch.goals });
+      
+      // Filtrar goles solo para jugadores que participaron en este partido
+      const participatingPlayerIds = [
+        ...lastMatch.teamA.members.map(m => m.id),
+        ...lastMatch.teamB.members.map(m => m.id)
+      ];
+      
+      const filteredGoals: { [playerId: string]: number } = {};
+      participatingPlayerIds.forEach(playerId => {
+        filteredGoals[playerId] = lastMatch.goals[playerId] || 0;
+      });
+      
+      setEditedGoals(filteredGoals);
     }
   }, [lastMatch]);
 
@@ -58,7 +71,7 @@ export function EditLastMatchModal({
       teamB: { ...lastMatch.teamB, score: editedScores.teamB },
       goals: editedGoals,
       result: calculateResult(),
-      timestamp: Date.now(), // Actualizar timestamp para indicar que fue editado
+      timestamp: Date.now(),
     };
 
     onSave(editedMatch);
@@ -74,6 +87,23 @@ export function EditLastMatchModal({
     (sum, member) => sum + (editedGoals[member.id] || 0),
     0
   );
+
+  // Logic for button visibility
+  const teamAHasWon = editedScores.teamA >= 2;
+  const teamBHasWon = editedScores.teamB >= 2;
+  const gameHasWinner = teamAHasWon || teamBHasWon;
+  
+  // Goals are fully distributed when individual goals = team score
+  const teamAGoalsFullyDistributed = totalGoalsTeamA === editedScores.teamA;
+  const teamBGoalsFullyDistributed = totalGoalsTeamB === editedScores.teamB;
+  
+  // Show score add buttons only if team hasn't won (can always add goals until winner)
+  const showTeamAAddButtons = !gameHasWinner;
+  const showTeamBAddButtons = !gameHasWinner;
+  
+  // Show player goal add buttons only if team hasn't won AND there are goals to distribute AND team has at least 1 goal
+  const showTeamAPlayerAddButtons = !gameHasWinner && totalGoalsTeamA < editedScores.teamA && editedScores.teamA > 0;
+  const showTeamBPlayerAddButtons = !gameHasWinner && totalGoalsTeamB < editedScores.teamB && editedScores.teamB > 0;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -94,7 +124,7 @@ export function EditLastMatchModal({
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-gray-700 p-4 rounded-lg">
               <div className="text-center mb-2">
-                <h4 className="font-bold text-lg">{lastMatch.teamA.name}</h4>
+                <h4 className="font-bold text-lg">{getColorByTeam(lastMatch.teamA.name as "Equipo 1" | "Equipo 2" | "Equipo 3")}</h4>
               </div>
               <div className="flex items-center justify-center space-x-2">
                 <button
@@ -107,21 +137,25 @@ export function EditLastMatchModal({
                 <span className="text-2xl font-bold w-12 text-center">
                   {editedScores.teamA}
                 </span>
-                <button
-                  onClick={() => handleScoreChange("teamA", editedScores.teamA + 1)}
-                  className="bg-green-600 hover:bg-green-700 px-3 py-1 rounded"
-                >
-                  +
-                </button>
+                {showTeamAAddButtons && (
+                  <button
+                    onClick={() => handleScoreChange("teamA", editedScores.teamA + 1)}
+                    className="bg-green-600 hover:bg-green-700 px-3 py-1 rounded"
+                  >
+                    +
+                  </button>
+                )}
               </div>
               <div className="text-center text-sm text-gray-400 mt-2">
                 Goles: {totalGoalsTeamA}
+                {teamAHasWon && <span className="text-yellow-400 block">🏆 Ganador</span>}
+                {teamAGoalsFullyDistributed && !teamAHasWon && editedScores.teamA > 0 && <span className="text-green-400 block">✓ Goles distribuidos</span>}
               </div>
             </div>
 
             <div className="bg-gray-700 p-4 rounded-lg">
               <div className="text-center mb-2">
-                <h4 className="font-bold text-lg">{lastMatch.teamB.name}</h4>
+                <h4 className="font-bold text-lg">{getColorByTeam(lastMatch.teamB.name as "Equipo 1" | "Equipo 2" | "Equipo 3")}</h4>
               </div>
               <div className="flex items-center justify-center space-x-2">
                 <button
@@ -134,15 +168,19 @@ export function EditLastMatchModal({
                 <span className="text-2xl font-bold w-12 text-center">
                   {editedScores.teamB}
                 </span>
-                <button
-                  onClick={() => handleScoreChange("teamB", editedScores.teamB + 1)}
-                  className="bg-green-600 hover:bg-green-700 px-3 py-1 rounded"
-                >
-                  +
-                </button>
+                {showTeamBAddButtons && (
+                  <button
+                    onClick={() => handleScoreChange("teamB", editedScores.teamB + 1)}
+                    className="bg-green-600 hover:bg-green-700 px-3 py-1 rounded"
+                  >
+                    +
+                  </button>
+                )}
               </div>
               <div className="text-center text-sm text-gray-400 mt-2">
                 Goles: {totalGoalsTeamB}
+                {teamBHasWon && <span className="text-yellow-400 block">🏆 Ganador</span>}
+                {teamBGoalsFullyDistributed && !teamBHasWon && editedScores.teamB > 0 && <span className="text-green-400 block">✓ Goles distribuidos</span>}
               </div>
             </div>
           </div>
@@ -154,7 +192,7 @@ export function EditLastMatchModal({
           <div className="grid grid-cols-2 gap-4">
             {/* Equipo A */}
             <div>
-              <h4 className="font-semibold mb-2">{lastMatch.teamA.name}</h4>
+              <h4 className="font-semibold mb-2">{getColorByTeam(lastMatch.teamA.name as "Equipo 1" | "Equipo 2" | "Equipo 3")}</h4>
               <div className="space-y-2">
                 {lastMatch.teamA.members.map((member) => (
                   <div key={member.id} className="flex items-center justify-between bg-gray-700 p-2 rounded">
@@ -170,12 +208,14 @@ export function EditLastMatchModal({
                       <span className="w-8 text-center">
                         {editedGoals[member.id] || 0}
                       </span>
-                      <button
-                        onClick={() => handleGoalChange(member.id, 1)}
-                        className="bg-green-600 hover:bg-green-700 px-2 py-1 rounded text-xs"
-                      >
-                        +
-                      </button>
+                      {showTeamAPlayerAddButtons && (
+                        <button
+                          onClick={() => handleGoalChange(member.id, 1)}
+                          className="bg-green-600 hover:bg-green-700 px-2 py-1 rounded text-xs"
+                        >
+                          +
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -184,7 +224,7 @@ export function EditLastMatchModal({
 
             {/* Equipo B */}
             <div>
-              <h4 className="font-semibold mb-2">{lastMatch.teamB.name}</h4>
+              <h4 className="font-semibold mb-2">{getColorByTeam(lastMatch.teamB.name as "Equipo 1" | "Equipo 2" | "Equipo 3")}</h4>
               <div className="space-y-2">
                 {lastMatch.teamB.members.map((member) => (
                   <div key={member.id} className="flex items-center justify-between bg-gray-700 p-2 rounded">
@@ -200,12 +240,14 @@ export function EditLastMatchModal({
                       <span className="w-8 text-center">
                         {editedGoals[member.id] || 0}
                       </span>
-                      <button
-                        onClick={() => handleGoalChange(member.id, 1)}
-                        className="bg-green-600 hover:bg-green-700 px-2 py-1 rounded text-xs"
-                      >
-                        +
-                      </button>
+                      {showTeamBPlayerAddButtons && (
+                        <button
+                          onClick={() => handleGoalChange(member.id, 1)}
+                          className="bg-green-600 hover:bg-green-700 px-2 py-1 rounded text-xs"
+                        >
+                          +
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -222,8 +264,8 @@ export function EditLastMatchModal({
               {calculateResult() === "draw" 
                 ? "Empate" 
                 : calculateResult() === "A" 
-                  ? `Ganó ${lastMatch.teamA.name}` 
-                  : `Ganó ${lastMatch.teamB.name}`
+                  ? `Ganó ${getColorByTeam(lastMatch.teamA.name as "Equipo 1" | "Equipo 2" | "Equipo 3")}` 
+                  : `Ganó ${getColorByTeam(lastMatch.teamB.name as "Equipo 1" | "Equipo 2" | "Equipo 3")}`
               }
             </span>
           </div>
