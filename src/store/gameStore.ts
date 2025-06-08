@@ -61,6 +61,9 @@ interface GameStore extends GameState {
   getLastMatch: () => MatchRecord | null;
   saveMatchToHistory: (result: "A" | "B" | "draw") => void;
   editLastMatch: (editedMatch: MatchRecord) => void;
+  
+  // Funciones para goles del partido actual
+  getCurrentMatchGoals: (team: "A" | "B") => number;
 }
 
 const MATCH_DURATION = 7 * 60;
@@ -93,6 +96,7 @@ const initialState: GameState = {
     team3: [],
   },
   currentGoals: {},
+  currentMatchGoals: {},
   lastWinner: "",
   lastDraw: "",
   selectedPlayers: [],
@@ -337,12 +341,15 @@ export const useGameStore = create<GameStore>()(
         set((state) => ({
           ...state,
           scores: { teamA: 0, teamB: 0 },
+          currentMatchGoals: {}, // Resetear goles del partido actual
           isActive: false,
           timer: {
             ...state.timer,
             timeLeft: state.timer.MATCH_DURATION,
             isRunning: false,
           },
+          // NO resetear currentGoals aquí porque necesitamos mantener
+          // los goles acumulados del día para las estadísticas
         })),
 
       updateTeamPlayers: (teamBuilder) =>
@@ -396,6 +403,10 @@ export const useGameStore = create<GameStore>()(
             ...state.currentGoals,
             [playerId]: (state.currentGoals[playerId] || 0) + 1,
           },
+          currentMatchGoals: {
+            ...state.currentMatchGoals,
+            [playerId]: (state.currentMatchGoals[playerId] || 0) + 1,
+          },
         })),
 
       updateAvailablePlayers: (players: Player[]) =>
@@ -413,7 +424,6 @@ export const useGameStore = create<GameStore>()(
       // Funciones para historial de partidos
       getLastMatch: () => {
         const state = get();
-        console.log({ state: state.matchHistory })
         return state.matchHistory.length > 0
           ? state.matchHistory[state.matchHistory.length - 1]
           : null;
@@ -437,7 +447,7 @@ export const useGameStore = create<GameStore>()(
             name: state.activeTeams.waiting.name,
             members: [...state.activeTeams.waiting.members],
           },
-          goals: { ...state.currentGoals },
+          goals: { ...state.currentMatchGoals },
           result,
           timestamp: Date.now(),
         };
@@ -446,6 +456,19 @@ export const useGameStore = create<GameStore>()(
           ...state,
           matchHistory: [...state.matchHistory, matchRecord],
         }));
+      },
+
+      getCurrentMatchGoals: (team: "A" | "B") => {
+        const state = get();
+        const teamPlayers = state.activeTeams[`team${team}`].members;
+        
+        // Sumar goles del partido actual para este equipo
+        let teamGoals = 0;
+        teamPlayers.forEach(member => {
+          teamGoals += state.currentMatchGoals[member.id] || 0;
+        });
+        
+        return teamGoals;
       },
 
       editLastMatch: (editedMatch: MatchRecord) => {
@@ -776,6 +799,7 @@ export const useGameStore = create<GameStore>()(
         timer: state.timer,
         teamBuilder: state.teamBuilder,
         currentGoals: state.currentGoals,
+        currentMatchGoals: state.currentMatchGoals,
         matchHistory: state.matchHistory,
         lastWinner: state.lastWinner,
         lastDraw: state.lastDraw,

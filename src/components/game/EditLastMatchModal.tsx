@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { MatchRecord } from "@/types";
 import { getColorByTeam } from "@/lib/helpers/helpers";
+import { toast } from "react-toastify";
 
 interface EditLastMatchModalProps {
   isOpen: boolean;
@@ -46,7 +47,33 @@ export function EditLastMatchModal({
 
   const handleScoreChange = (team: "teamA" | "teamB", newScore: number) => {
     if (newScore >= 0 && newScore <= 10) {
+      const currentScore = editedScores[team];
       setEditedScores(prev => ({ ...prev, [team]: newScore }));
+
+      // Si el nuevo marcador es menor que el actual, quitar goles automáticamente
+      if (newScore < currentScore) {
+        const teamPlayers = team === "teamA" ? lastMatch.teamA.members : lastMatch.teamB.members;
+        const goalDifference = currentScore - newScore;
+        
+        // Crear una copia de los goles editados
+        const newEditedGoals = { ...editedGoals };
+        
+        // Quitar goles empezando por los jugadores que tienen goles
+        let goalsToRemove = goalDifference;
+        
+        for (const player of teamPlayers) {
+          if (goalsToRemove <= 0) break;
+          
+          const currentPlayerGoals = newEditedGoals[player.id] || 0;
+          if (currentPlayerGoals > 0) {
+            const goalsToRemoveFromPlayer = Math.min(currentPlayerGoals, goalsToRemove);
+            newEditedGoals[player.id] = currentPlayerGoals - goalsToRemoveFromPlayer;
+            goalsToRemove -= goalsToRemoveFromPlayer;
+          }
+        }
+        
+        setEditedGoals(newEditedGoals);
+      }
     }
   };
 
@@ -64,7 +91,27 @@ export function EditLastMatchModal({
     return "draw";
   };
 
+  const validateGoalsCoherence = (): boolean => {
+    // Validar que los goles individuales coincidan con el marcador del equipo
+    if (totalGoalsTeamA !== editedScores.teamA) {
+      toast.error(`Error: Los goles del ${getColorByTeam(lastMatch.teamA.name as "Equipo 1" | "Equipo 2" | "Equipo 3")} (${totalGoalsTeamA}) no coinciden con el marcador (${editedScores.teamA})`);
+      return false;
+    }
+    
+    if (totalGoalsTeamB !== editedScores.teamB) {
+      toast.error(`Error: Los goles del ${getColorByTeam(lastMatch.teamB.name as "Equipo 1" | "Equipo 2" | "Equipo 3")} (${totalGoalsTeamB}) no coinciden con el marcador (${editedScores.teamB})`);
+      return false;
+    }
+    
+    return true;
+  };
+
   const handleSave = () => {
+    // Validar coherencia antes de guardar
+    if (!validateGoalsCoherence()) {
+      return; // No guardar si hay inconsistencias
+    }
+
     const editedMatch: MatchRecord = {
       ...lastMatch,
       teamA: { ...lastMatch.teamA, score: editedScores.teamA },
@@ -97,13 +144,14 @@ export function EditLastMatchModal({
   const teamAGoalsFullyDistributed = totalGoalsTeamA === editedScores.teamA;
   const teamBGoalsFullyDistributed = totalGoalsTeamB === editedScores.teamB;
   
-  // Show score add buttons only if team hasn't won (can always add goals until winner)
+  // Show score add buttons only if no team has won yet (can always add goals until someone wins)
   const showTeamAAddButtons = !gameHasWinner;
   const showTeamBAddButtons = !gameHasWinner;
   
-  // Show player goal add buttons only if team hasn't won AND there are goals to distribute AND team has at least 1 goal
-  const showTeamAPlayerAddButtons = !gameHasWinner && totalGoalsTeamA < editedScores.teamA && editedScores.teamA > 0;
-  const showTeamBPlayerAddButtons = !gameHasWinner && totalGoalsTeamB < editedScores.teamB && editedScores.teamB > 0;
+  // Show player goal add buttons if there are goals available to distribute for that team
+  // This allows redistribution of goals and goals for losing teams
+  const showTeamAPlayerAddButtons = totalGoalsTeamA < editedScores.teamA && editedScores.teamA > 0;
+  const showTeamBPlayerAddButtons = totalGoalsTeamB < editedScores.teamB && editedScores.teamB > 0;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -281,9 +329,16 @@ export function EditLastMatchModal({
           </button>
           <button
             onClick={handleSave}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 py-3 rounded-lg"
+            className={`flex-1 py-3 rounded-lg transition-colors ${
+              totalGoalsTeamA === editedScores.teamA && totalGoalsTeamB === editedScores.teamB
+                ? "bg-blue-600 hover:bg-blue-700"
+                : "bg-red-600 hover:bg-red-700"
+            }`}
           >
-            Guardar Cambios
+            {totalGoalsTeamA === editedScores.teamA && totalGoalsTeamB === editedScores.teamB
+              ? "Guardar Cambios"
+              : "⚠️ Goles inconsistentes"
+            }
           </button>
         </div>
       </div>

@@ -124,6 +124,70 @@ export const triangularService = {
       throw error;
     }
   },
+
+  async getAllTriangulars(): Promise<TriangularHistory[]> {
+    try {
+      const response = await fetch(`${API_BASE}/triangular`);
+      if (!response.ok) throw new Error("Network response was not ok");
+      return response.json();
+    } catch (error) {
+      console.error("Error fetching all triangulars:", error);
+      throw error;
+    }
+  },
+
+  async getTriangularById(id: string): Promise<TriangularHistory> {
+    try {
+      const response = await fetch(`${API_BASE}/triangular/${id}`);
+      if (!response.ok) throw new Error("Network response was not ok");
+      return response.json();
+    } catch (error) {
+      console.error("Error fetching triangular:", error);
+      throw error;
+    }
+  },
+
+  async updateTriangular(id: string, updateData: { champion?: string; date?: string }): Promise<TriangularHistory> {
+    try {
+      const response = await fetch(`${API_BASE}/triangular/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ message: "Error desconocido" }));
+        throw new Error(errorData.message || "Error al actualizar el triangular");
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error("Error updating triangular:", error);
+      throw error;
+    }
+  },
+
+  async deleteTriangular(id: string): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE}/triangular/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ message: "Error desconocido" }));
+        throw new Error(errorData.message || "Error al eliminar el triangular");
+      }
+    } catch (error) {
+      console.error("Error deleting triangular:", error);
+      throw error;
+    }
+  },
 };
 
 // Exportamos un objeto que agrupa todos los servicios

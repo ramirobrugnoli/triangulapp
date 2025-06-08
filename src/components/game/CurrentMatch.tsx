@@ -34,10 +34,11 @@ export function CurrentMatch() {
     resetTimer,
     registerGoal,
     finalizeTriangular,
-    currentGoals,
+    currentMatchGoals,
     getLastMatch,
     editLastMatch,
     saveMatchToHistory,
+    getCurrentMatchGoals,
   } = useGameStore();
 
   // Iniciar automáticamente el timer al montar el componente
@@ -53,6 +54,16 @@ export function CurrentMatch() {
     // Reiniciar automáticamente después del reset
     setIsActive(true);
     startTimer();
+  };
+
+  const handleToggleTimer = () => {
+    if (isActive) {
+      setIsActive(false);
+      stopTimer();
+    } else {
+      setIsActive(true);
+      startTimer();
+    }
   };
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -99,15 +110,17 @@ export function CurrentMatch() {
     setModalOpen(true);
   };
 
-  const handleGoalConfirm = (playerId: string) => {
+    const handleGoalConfirm = (playerId: string) => {
     const team = selectedTeam!;
-    const currentScore = scores[`team${team}`];
-    const newScore = currentScore + 1;
+    
+    // Registrar el gol individual primero
+    registerGoal(playerId);
+    
+    // Calcular el marcador del equipo basado en goles del partido actual
+    const newScore = getCurrentMatchGoals(team);
     updateScore(team, newScore);
 
-    registerGoal(playerId);
-
-    if (newScore === 2) {
+    if (newScore >= 2) {
       // Pausar el timer primero
       setIsActive(false);
       stopTimer();
@@ -166,6 +179,7 @@ export function CurrentMatch() {
         onTimeUp={handleTimeUp} 
         isActive={isActive} 
         onResetTimer={handleResetTimer}
+        onToggleTimer={handleToggleTimer}
       />
 
       <ScoreBoard
@@ -201,7 +215,7 @@ export function CurrentMatch() {
             {activeTeams.teamA.members.map((member) => (
               <div key={member.id} className="flex items-center">
                 <span>{member.name}</span>
-                <GoalIndicator goals={currentGoals[member.id] || 0} />
+                <GoalIndicator goals={currentMatchGoals[member.id] || 0} />
               </div>
             ))}
           </div>
@@ -214,7 +228,7 @@ export function CurrentMatch() {
             {activeTeams.teamB.members.map((member) => (
               <div key={member.id} className="flex items-center">
                 <span>{member.name}</span>
-                <GoalIndicator goals={currentGoals[member.id] || 0} />
+                <GoalIndicator goals={currentMatchGoals[member.id] || 0} />
               </div>
             ))}
           </div>
@@ -231,7 +245,7 @@ export function CurrentMatch() {
             {activeTeams.waiting.members.map((member) => (
               <div key={member.id} className="flex items-center">
                 <span>{member.name}</span>
-                <GoalIndicator goals={currentGoals[member.id] || 0} />
+                <GoalIndicator goals={currentMatchGoals[member.id] || 0} />
               </div>
             ))}
           </div>

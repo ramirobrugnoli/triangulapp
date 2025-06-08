@@ -93,6 +93,7 @@ export interface GameState {
     waiting: GameTeam;
   };
   currentGoals: GoalsTracking;
+  currentMatchGoals: GoalsTracking; // Goles solo del partido actual
   lastWinner: string;
   lastDraw: string;
   selectedPlayers: Player[];

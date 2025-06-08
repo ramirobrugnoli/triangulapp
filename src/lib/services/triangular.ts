@@ -250,4 +250,83 @@ export const triangularService = {
 
     return triangulars.map(mapTriangularToHistory);
   },
+
+  async getTriangularById(id: string) {
+    const triangular = (await prisma.triangular.findUnique({
+      where: { id },
+      include: {
+        teams: {
+          orderBy: {
+            position: "asc",
+          },
+        },
+        players: {
+          include: {
+            player: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+          orderBy: {
+            goals: "desc",
+          },
+        },
+      },
+    })) as PrismaTriangularWithRelations | null;
+
+    if (!triangular) return null;
+    return mapTriangularToHistory(triangular);
+  },
+
+  async updateTriangular(id: string, updateData: { champion?: string; date?: string }) {
+    const triangular = await prisma.triangular.update({
+      where: { id },
+      data: {
+        ...(updateData.champion && { champion: updateData.champion }),
+        ...(updateData.date && { date: new Date(updateData.date) }),
+      },
+      include: {
+        teams: {
+          orderBy: {
+            position: "asc",
+          },
+        },
+        players: {
+          include: {
+            player: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return triangular;
+  },
+
+  async deleteTriangular(id: string) {
+    return prisma.$transaction(async (tx) => {
+      // Primero eliminar las relaciones
+      await tx.playerTriangular.deleteMany({
+        where: { triangularId: id },
+      });
+
+      await tx.teamResult.deleteMany({
+        where: { triangularId: id },
+      });
+
+      // Luego eliminar el triangular
+      await tx.triangular.delete({
+        where: { id },
+      });
+
+      // Recalcular estadísticas de todos los jugadores
+      await triangularService.recalculateAllPlayerStats();
+    });
+  },
 };
