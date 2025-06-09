@@ -15,6 +15,7 @@ export function GameTimer({ onTimeUp, isActive, onResetTimer, onToggleTimer }: G
   const { getTimeLeft, decrementTimer } = useGameStore();
   const [mounted, setMounted] = useState(false);
   const [whistleHasPlayed, setWhistleHasPlayed] = useState(false);
+  const [timerPaused, setTimerPaused] = useState(true);
 
   // Set mounted to true after component mounts
   useEffect(() => {
@@ -37,7 +38,8 @@ export function GameTimer({ onTimeUp, isActive, onResetTimer, onToggleTimer }: G
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
 
-    if (isActive && mounted) {
+    // Only run the external timer if the game is active AND the timer is not paused
+    if (isActive && mounted && !timerPaused) {
       intervalId = setInterval(() => {
         const currentTime = getTimeLeft();
 
@@ -58,7 +60,7 @@ export function GameTimer({ onTimeUp, isActive, onResetTimer, onToggleTimer }: G
     }
 
     return () => clearInterval(intervalId);
-  }, [isActive, mounted, getTimeLeft, decrementTimer, onTimeUp, whistleHasPlayed]);
+  }, [isActive, mounted, timerPaused, getTimeLeft, decrementTimer, onTimeUp, whistleHasPlayed]);
 
   // Reset whistle flag when timer is reset to full time
   useEffect(() => {
@@ -67,6 +69,14 @@ export function GameTimer({ onTimeUp, isActive, onResetTimer, onToggleTimer }: G
       setWhistleHasPlayed(false);
     }
   }, [getTimeLeft]);
+
+  const handleTogglePlay = (isPaused: boolean) => {
+    setTimerPaused(isPaused);
+  };
+
+  const handleToggle = () => {
+    onToggleTimer?.();
+  };
 
   const timeLeft = getTimeLeft();
 
@@ -77,7 +87,8 @@ export function GameTimer({ onTimeUp, isActive, onResetTimer, onToggleTimer }: G
           timeLeft={timeLeft}
           isActive={isActive}
           onReset={onResetTimer}
-          onToggle={onToggleTimer}
+          onToggle={handleToggle}
+          onTogglePlay={handleTogglePlay}
         />
       )}
     </div>
@@ -89,9 +100,10 @@ interface GameTimerComponentProps {
   isActive: boolean;
   onReset: () => void;
   onToggle?: () => void;
+  onTogglePlay: (isPaused: boolean) => void;
 }
 
-function GameTimerComponent({ timeLeft, isActive, onReset, onToggle }: GameTimerComponentProps) {
+function GameTimerComponent({ timeLeft, isActive, onReset, onToggle, onTogglePlay }: GameTimerComponentProps) {
   return (
     <div className="scale-75 transform origin-center w-full">
       <style jsx>{`
@@ -104,6 +116,7 @@ function GameTimerComponent({ timeLeft, isActive, onReset, onToggle }: GameTimer
         initialMinutes={7}
         onReset={onReset}
         onToggle={onToggle}
+        onTogglePlay={onTogglePlay}
         timeLeft={timeLeft}
       />
     </div>
