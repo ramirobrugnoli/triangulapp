@@ -8,6 +8,7 @@ import {
   TeamBuilderState,
   TeamScore,
   TriangularResult,
+  MatchRecord,
 } from "@/types";
 import { api } from "@/lib/api";
 
@@ -35,6 +36,7 @@ interface GameStore extends GameState {
 
   setTimeLeft: (time: number) => void;
   resetTimer: () => void;
+  decrementTimer: () => void;
 
   startTimer: () => void;
   stopTimer: () => void;
@@ -54,6 +56,14 @@ interface GameStore extends GameState {
   registerGoal: (playerId: string) => void;
   finalizeTriangular: () => Promise<void>;
   updateAvailablePlayers: (players: Player[]) => void;
+
+  // Funciones para historial de partidos
+  getLastMatch: () => MatchRecord | null;
+  saveMatchToHistory: (result: "A" | "B" | "draw") => void;
+  editLastMatch: (editedMatch: MatchRecord) => void;
+  
+  // Funciones para goles del partido actual
+  getCurrentMatchGoals: (team: "A" | "B") => number;
 }
 
 const MATCH_DURATION = 7 * 60;
@@ -74,8 +84,9 @@ const initialState: GameState = {
     { name: "Equipo 3", points: 0, wins: 0, normalWins: 0, draws: 0 },
   ],
   timer: {
-    endTime: null,
+    timeLeft: MATCH_DURATION,
     MATCH_DURATION,
+    isRunning: false,
   },
   isActive: false,
   teamBuilder: {
@@ -85,9 +96,11 @@ const initialState: GameState = {
     team3: [],
   },
   currentGoals: {},
+  currentMatchGoals: {},
   lastWinner: "",
   lastDraw: "",
   selectedPlayers: [],
+  matchHistory: [],
 };
 
 export const useGameStore = create<GameStore>()(
@@ -115,6 +128,7 @@ export const useGameStore = create<GameStore>()(
       rotateTeams: (winner) =>
         set((state) => {
           const { activeTeams } = state;
+
           let newActiveTeams;
           let lastWinner = state.lastWinner;
           let lastDraw = state.lastDraw;
@@ -176,8 +190,10 @@ export const useGameStore = create<GameStore>()(
                 lastDraw = "A";
                 lastWinner = "";
               } else {
-                // Primer cambio, rotación aleatoria entre A y B
-                const randomTeam = Math.random() < 0.33 ? "A" : "B";
+                // Primer cambio, usar una rotación determinística basada en timestamp
+                // Esto evita problemas de hidratación al usar Math.random()
+                const now = Date.now();
+                const randomTeam = (now % 2) === 0 ? "A" : "B";
 
                 if (randomTeam === "A") {
                   // A espera, B y waiting juegan
@@ -216,18 +232,18 @@ export const useGameStore = create<GameStore>()(
             type === "win"
               ? "wins"
               : type === "normalWin"
-              ? "normalWins"
-              : "draws";
+                ? "normalWins"
+                : "draws";
 
           return {
             ...state,
             dailyScores: state.dailyScores.map((score) =>
               score.name === team
                 ? {
-                    ...score,
-                    points: score.points + pointsToAdd,
-                    [statToUpdate]: score[statToUpdate] + 1,
-                  }
+                  ...score,
+                  points: score.points + pointsToAdd,
+                  [statToUpdate]: score[statToUpdate] + 1,
+                }
                 : score
             ),
           };
@@ -272,71 +288,68 @@ export const useGameStore = create<GameStore>()(
           ...state,
           timer: {
             ...state.timer,
-            endTime: null,
-            pausedTimeLeft: undefined,
+            timeLeft: state.timer.MATCH_DURATION,
+            isRunning: false,
           },
         })),
 
-      startTimer: () =>
+      decrementTimer: () =>
         set((state) => {
-          // Definir tiempo en base al estado del timer
-          const timeToUse =
-            state.timer.pausedTimeLeft !== undefined
-              ? state.timer.pausedTimeLeft
-              : state.timer.MATCH_DURATION;
-
+          const newTimeLeft = Math.max(0, state.timer.timeLeft - 1);
           return {
             ...state,
             timer: {
               ...state.timer,
-              endTime: Date.now() + timeToUse * 1000,
-              //endTime: Date.now() + timeToUse + 6000,
-              pausedTimeLeft: undefined,
+              timeLeft: newTimeLeft,
             },
           };
         }),
+
+      startTimer: () =>
+        set((state) => ({
+          ...state,
+          timer: {
+            ...state.timer,
+            isRunning: true,
+          },
+        })),
 
       stopTimer: () =>
-        set((state) => {
-          const currentTimeLeft = get().getTimeLeft();
-          return {
-            ...state,
-            timer: {
-              ...state.timer,
-              endTime: null,
-              pausedTimeLeft: currentTimeLeft, // Guardar el tiempo restante actual
-            },
-          };
-        }),
+        set((state) => ({
+          ...state,
+          timer: {
+            ...state.timer,
+            isRunning: false,
+          },
+        })),
 
       getTimeLeft: () => {
         const state = get();
-        if (!state.timer.endTime) return state.timer.MATCH_DURATION;
-
-        const timeLeft = Math.ceil((state.timer.endTime - Date.now()) / 1000);
-        return Math.max(0, Math.min(timeLeft, state.timer.MATCH_DURATION));
+        return state.timer.timeLeft;
       },
 
       setIsActive: (active) => {
-        const state = get();
         if (active) {
           get().startTimer();
         } else {
           get().stopTimer();
         }
-        set({ ...state, isActive: active });
+        set((state) => ({ ...state, isActive: active }));
       },
 
       resetGame: () =>
         set((state) => ({
           ...state,
           scores: { teamA: 0, teamB: 0 },
+          currentMatchGoals: {}, // Resetear goles del partido actual
           isActive: false,
           timer: {
             ...state.timer,
-            endTime: null,
-            pausedTimeLeft: undefined,
+            timeLeft: state.timer.MATCH_DURATION,
+            isRunning: false,
           },
+          // NO resetear currentGoals aquí porque necesitamos mantener
+          // los goles acumulados del día para las estadísticas
         })),
 
       updateTeamPlayers: (teamBuilder) =>
@@ -390,6 +403,10 @@ export const useGameStore = create<GameStore>()(
             ...state.currentGoals,
             [playerId]: (state.currentGoals[playerId] || 0) + 1,
           },
+          currentMatchGoals: {
+            ...state.currentMatchGoals,
+            [playerId]: (state.currentMatchGoals[playerId] || 0) + 1,
+          },
         })),
 
       updateAvailablePlayers: (players: Player[]) =>
@@ -403,6 +420,283 @@ export const useGameStore = create<GameStore>()(
             team3: [],
           },
         })),
+
+      // Funciones para historial de partidos
+      getLastMatch: () => {
+        const state = get();
+        return state.matchHistory.length > 0
+          ? state.matchHistory[state.matchHistory.length - 1]
+          : null;
+      },
+
+      saveMatchToHistory: (result: "A" | "B" | "draw") => {
+        const state = get();
+
+        const matchRecord: MatchRecord = {
+          teamA: {
+            name: state.activeTeams.teamA.name,
+            members: [...state.activeTeams.teamA.members],
+            score: state.scores.teamA,
+          },
+          teamB: {
+            name: state.activeTeams.teamB.name,
+            members: [...state.activeTeams.teamB.members],
+            score: state.scores.teamB,
+          },
+          waiting: {
+            name: state.activeTeams.waiting.name,
+            members: [...state.activeTeams.waiting.members],
+          },
+          goals: { ...state.currentMatchGoals },
+          result,
+          timestamp: Date.now(),
+        };
+
+        set((state) => ({
+          ...state,
+          matchHistory: [...state.matchHistory, matchRecord],
+        }));
+      },
+
+      getCurrentMatchGoals: (team: "A" | "B") => {
+        const state = get();
+        const teamPlayers = state.activeTeams[`team${team}`].members;
+        
+        // Sumar goles del partido actual para este equipo
+        let teamGoals = 0;
+        teamPlayers.forEach(member => {
+          teamGoals += state.currentMatchGoals[member.id] || 0;
+        });
+        
+        return teamGoals;
+      },
+
+      editLastMatch: (editedMatch: MatchRecord) => {
+        set((state) => {
+          if (state.matchHistory.length === 0) return state;
+
+          const newHistory = [...state.matchHistory];
+          const lastMatchIndex = newHistory.length - 1;
+          const originalMatch = newHistory[lastMatchIndex];
+
+          // Actualizar el historial con el partido editado
+          newHistory[lastMatchIndex] = editedMatch;
+
+          const originalResult = originalMatch.result;
+          const newResult = editedMatch.result;
+          
+          // Si el resultado cambió, necesitamos recalcular todo el estado del juego
+          const resultChanged = originalResult !== newResult;
+
+          // Actualizar puntajes diarios
+          const newDailyScores = [...state.dailyScores];
+
+          // Revertir puntajes del partido original
+          if (originalResult === "A") {
+            const teamAIndex = newDailyScores.findIndex(s => s.name === originalMatch.teamA.name);
+            if (teamAIndex !== -1) {
+              const goalDifference = originalMatch.teamA.score - originalMatch.teamB.score;
+              const isWinBy2Goals = goalDifference >= 2;
+              
+              newDailyScores[teamAIndex] = {
+                ...newDailyScores[teamAIndex],
+                points: newDailyScores[teamAIndex].points - (isWinBy2Goals ? 3 : 2),
+                wins: isWinBy2Goals ? newDailyScores[teamAIndex].wins - 1 : newDailyScores[teamAIndex].wins,
+                normalWins: !isWinBy2Goals ? newDailyScores[teamAIndex].normalWins - 1 : newDailyScores[teamAIndex].normalWins,
+              };
+            }
+          } else if (originalResult === "B") {
+            const teamBIndex = newDailyScores.findIndex(s => s.name === originalMatch.teamB.name);
+            if (teamBIndex !== -1) {
+              const goalDifference = originalMatch.teamB.score - originalMatch.teamA.score;
+              const isWinBy2Goals = goalDifference >= 2;
+              
+              newDailyScores[teamBIndex] = {
+                ...newDailyScores[teamBIndex],
+                points: newDailyScores[teamBIndex].points - (isWinBy2Goals ? 3 : 2),
+                wins: isWinBy2Goals ? newDailyScores[teamBIndex].wins - 1 : newDailyScores[teamBIndex].wins,
+                normalWins: !isWinBy2Goals ? newDailyScores[teamBIndex].normalWins - 1 : newDailyScores[teamBIndex].normalWins,
+              };
+            }
+          } else if (originalResult === "draw") {
+            const teamAIndex = newDailyScores.findIndex(s => s.name === originalMatch.teamA.name);
+            const teamBIndex = newDailyScores.findIndex(s => s.name === originalMatch.teamB.name);
+            if (teamAIndex !== -1) {
+              newDailyScores[teamAIndex] = {
+                ...newDailyScores[teamAIndex],
+                points: newDailyScores[teamAIndex].points - 1,
+                draws: newDailyScores[teamAIndex].draws - 1,
+              };
+            }
+            if (teamBIndex !== -1) {
+              newDailyScores[teamBIndex] = {
+                ...newDailyScores[teamBIndex],
+                points: newDailyScores[teamBIndex].points - 1,
+                draws: newDailyScores[teamBIndex].draws - 1,
+              };
+            }
+          }
+
+          // Aplicar los puntajes del partido editado
+          if (newResult === "A") {
+            const teamAIndex = newDailyScores.findIndex(s => s.name === editedMatch.teamA.name);
+            if (teamAIndex !== -1) {
+              const goalDifference = editedMatch.teamA.score - editedMatch.teamB.score;
+              const isWinBy2Goals = goalDifference >= 2;
+              
+              newDailyScores[teamAIndex] = {
+                ...newDailyScores[teamAIndex],
+                points: newDailyScores[teamAIndex].points + (isWinBy2Goals ? 3 : 2),
+                wins: isWinBy2Goals ? newDailyScores[teamAIndex].wins + 1 : newDailyScores[teamAIndex].wins,
+                normalWins: !isWinBy2Goals ? newDailyScores[teamAIndex].normalWins + 1 : newDailyScores[teamAIndex].normalWins,
+              };
+            }
+          } else if (newResult === "B") {
+            const teamBIndex = newDailyScores.findIndex(s => s.name === editedMatch.teamB.name);
+            if (teamBIndex !== -1) {
+              const goalDifference = editedMatch.teamB.score - editedMatch.teamA.score;
+              const isWinBy2Goals = goalDifference >= 2;
+              
+              newDailyScores[teamBIndex] = {
+                ...newDailyScores[teamBIndex],
+                points: newDailyScores[teamBIndex].points + (isWinBy2Goals ? 3 : 2),
+                wins: isWinBy2Goals ? newDailyScores[teamBIndex].wins + 1 : newDailyScores[teamBIndex].wins,
+                normalWins: !isWinBy2Goals ? newDailyScores[teamBIndex].normalWins + 1 : newDailyScores[teamBIndex].normalWins,
+              };
+            }
+          } else if (newResult === "draw") {
+            const teamAIndex = newDailyScores.findIndex(s => s.name === editedMatch.teamA.name);
+            const teamBIndex = newDailyScores.findIndex(s => s.name === editedMatch.teamB.name);
+            if (teamAIndex !== -1) {
+              newDailyScores[teamAIndex] = {
+                ...newDailyScores[teamAIndex],
+                points: newDailyScores[teamAIndex].points + 1,
+                draws: newDailyScores[teamAIndex].draws + 1,
+              };
+            }
+            if (teamBIndex !== -1) {
+              newDailyScores[teamBIndex] = {
+                ...newDailyScores[teamBIndex],
+                points: newDailyScores[teamBIndex].points + 1,
+                draws: newDailyScores[teamBIndex].draws + 1,
+              };
+            }
+          }
+
+          // Actualizar los goles actuales con los del partido editado
+          const newCurrentGoals = { ...state.currentGoals };
+
+          // Restar goles del partido original
+          Object.keys(originalMatch.goals).forEach(playerId => {
+            if (newCurrentGoals[playerId]) {
+              newCurrentGoals[playerId] = Math.max(0, newCurrentGoals[playerId] - originalMatch.goals[playerId]);
+              if (newCurrentGoals[playerId] === 0) {
+                delete newCurrentGoals[playerId];
+              }
+            }
+          });
+
+          // Sumar goles del partido editado
+          Object.keys(editedMatch.goals).forEach(playerId => {
+            newCurrentGoals[playerId] = (newCurrentGoals[playerId] || 0) + editedMatch.goals[playerId];
+          });
+
+          // Si el resultado cambió, recalcular el estado del juego desde el estado antes del último partido
+          let newActiveTeams = state.activeTeams;
+          let newLastWinner = state.lastWinner;
+          let newLastDraw = state.lastDraw;
+
+          if (resultChanged) {
+            // Necesitamos recalcular las rotaciones basadas en el historial completo
+            // Para simplificar, aplicamos la rotación con el nuevo resultado
+            
+            // Identificar qué equipos jugaron en el último partido
+            const teamAName = originalMatch.teamA.name;
+            const teamBName = originalMatch.teamB.name;
+            const waitingTeamName = originalMatch.waiting.name;
+
+            // Recrear el estado de equipos con los nombres originales del partido
+            const teamsFromMatch = {
+              teamA: { name: teamAName as Team, members: originalMatch.teamA.members },
+              teamB: { name: teamBName as Team, members: originalMatch.teamB.members },
+              waiting: { name: waitingTeamName as Team, members: originalMatch.waiting.members }
+            };
+
+            // Aplicar la rotación basada en el nuevo resultado
+            switch (newResult) {
+              case "A":
+                newActiveTeams = {
+                  teamA: teamsFromMatch.teamA,
+                  teamB: teamsFromMatch.waiting,
+                  waiting: teamsFromMatch.teamB,
+                };
+                newLastWinner = "A";
+                newLastDraw = "";
+                break;
+              case "B":
+                newActiveTeams = {
+                  teamA: teamsFromMatch.waiting,
+                  teamB: teamsFromMatch.teamB,
+                  waiting: teamsFromMatch.teamA,
+                };
+                newLastWinner = "B";
+                newLastDraw = "";
+                break;
+              case "draw":
+                // Para empates, usar la misma lógica que rotateTeams
+                if (state.lastWinner === "A") {
+                  newActiveTeams = {
+                    teamA: teamsFromMatch.waiting,
+                    teamB: teamsFromMatch.teamB,
+                    waiting: teamsFromMatch.teamA,
+                  };
+                  newLastWinner = "";
+                  newLastDraw = "B";
+                } else if (state.lastWinner === "B") {
+                  newActiveTeams = {
+                    teamA: teamsFromMatch.teamA,
+                    teamB: teamsFromMatch.waiting,
+                    waiting: teamsFromMatch.teamB,
+                  };
+                  newLastWinner = "";
+                  newLastDraw = "A";
+                } else {
+                  // Usar rotación determinística para evitar problemas de hidratación
+                  const now = Date.now();
+                  const randomTeam = (now % 2) === 0 ? "A" : "B";
+
+                  if (randomTeam === "A") {
+                    newActiveTeams = {
+                      teamA: teamsFromMatch.waiting,
+                      teamB: teamsFromMatch.teamB,
+                      waiting: teamsFromMatch.teamA,
+                    };
+                    newLastDraw = "B";
+                  } else {
+                    newActiveTeams = {
+                      teamA: teamsFromMatch.teamA,
+                      teamB: teamsFromMatch.waiting,
+                      waiting: teamsFromMatch.teamB,
+                    };
+                    newLastDraw = "A";
+                  }
+                  newLastWinner = "";
+                }
+                break;
+            }
+          }
+
+          return {
+            ...state,
+            matchHistory: newHistory,
+            dailyScores: newDailyScores,
+            currentGoals: newCurrentGoals,
+            activeTeams: newActiveTeams,
+            lastWinner: newLastWinner,
+            lastDraw: newLastDraw,
+          };
+        });
+      },
 
       finalizeTriangular: async () => {
         const state = get();
@@ -474,6 +768,7 @@ export const useGameStore = create<GameStore>()(
         set((state) => ({
           ...state,
           currentGoals: {},
+          matchHistory: [], // Limpiar historial al finalizar triangular
           dailyScores: [
             { name: "Equipo 1", points: 0, wins: 0, normalWins: 0, draws: 0 },
             { name: "Equipo 2", points: 0, wins: 0, normalWins: 0, draws: 0 },
@@ -486,7 +781,8 @@ export const useGameStore = create<GameStore>()(
           isActive: false,
           timer: {
             ...state.timer,
-            endTime: null,
+            timeLeft: state.timer.MATCH_DURATION,
+            isRunning: false,
           },
         }));
       },
@@ -503,6 +799,10 @@ export const useGameStore = create<GameStore>()(
         timer: state.timer,
         teamBuilder: state.teamBuilder,
         currentGoals: state.currentGoals,
+        currentMatchGoals: state.currentMatchGoals,
+        matchHistory: state.matchHistory,
+        lastWinner: state.lastWinner,
+        lastDraw: state.lastDraw,
       }),
     }
   )
