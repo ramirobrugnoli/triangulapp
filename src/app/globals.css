@@ -14,10 +14,27 @@
   }
 }
 
+/* Mobile-specific styles to prevent pull-to-refresh */
+@media (max-width: 768px) {
+  html, body {
+    overscroll-behavior-y: none;
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: touch;
+    background-image: url("/assets/background/promiedosfondo.jpg") !important;
+  }
+  
+  main {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Desktop and general styles */
 body {
   color: var(--foreground);
-  background-image: url("../assets/background/promiedosfondo.jpg") !important;
+  background-image: url("/assets/background/promiedosfondo.jpg") !important;
   background-repeat: repeat;
   background-size: auto;
+  background-attachment: scroll;
   font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
 }

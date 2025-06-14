@@ -41,19 +41,19 @@ export function CurrentMatch() {
     getCurrentMatchGoals,
   } = useGameStore();
 
-  // Iniciar automáticamente el timer al montar el componente
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState<"A" | "B" | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const notify = (message: string) => toast(message);
+
   useEffect(() => {
-    if (!isActive) {
-      setIsActive(true);
-      startTimer();
-    }
-  }, [isActive, setIsActive, startTimer]); // Solo ejecutar cuando cambien estas dependencias
+    setMounted(true);
+  }, []);
 
   const handleResetTimer = () => {
     resetTimer();
-    // Reiniciar automáticamente después del reset
-    setIsActive(true);
-    startTimer();
   };
 
   const handleToggleTimer = () => {
@@ -66,24 +66,10 @@ export function CurrentMatch() {
     }
   };
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedTeam, setSelectedTeam] = useState<"A" | "B" | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const notify = (message: string) => toast(message);
-
-  // Set mounted to true after component mounts to avoid hydration issues
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   const handleTimeUp = () => {
-    // Pausar el timer primero
     setIsActive(false);
     stopTimer();
     
-    // Determinar el resultado del partido
     let result: "A" | "B" | "draw";
     if (scores.teamA > scores.teamB) {
       result = "A";
@@ -97,10 +83,7 @@ export function CurrentMatch() {
       updateDailyScore(activeTeams.teamB.name, "draw");
     }
     
-    // Guardar el partido en el historial ANTES de rotar equipos
     saveMatchToHistory(result);
-    
-    // Rotar equipos
     rotateTeams(result);
     resetGame();
   };

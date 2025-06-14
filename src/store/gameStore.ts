@@ -342,11 +342,11 @@ export const useGameStore = create<GameStore>()(
           ...state,
           scores: { teamA: 0, teamB: 0 },
           currentMatchGoals: {}, // Resetear goles del partido actual
-          isActive: false,
+          isActive: false, // Ensure game is not active
           timer: {
             ...state.timer,
             timeLeft: state.timer.MATCH_DURATION,
-            isRunning: false,
+            isRunning: false, // Ensure timer is not running
           },
           // NO resetear currentGoals aquí porque necesitamos mantener
           // los goles acumulados del día para las estadísticas

@@ -73,6 +73,7 @@ const CreatePlayer = ({ onPlayerAdded }: CreatePlayerProps) => {
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white"
               placeholder="Nombre del jugador"
               disabled={isLoading}
+              suppressHydrationWarning={true}
             />
           </div>
 
