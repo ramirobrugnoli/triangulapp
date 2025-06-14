@@ -2,7 +2,8 @@
 
 import { useGameStore } from '@/store/gameStore';
 import { useEffect, useState } from 'react';
-import Timer from '@/components/ui/Timer';
+import { ResetIcon, PauseIcon, PlayIcon } from '@/components/ui/icons';
+import TimerDisplay from '@/components/ui/TimerDisplay';
 
 interface GameTimerProps {
   onTimeUp: () => void;
@@ -15,7 +16,6 @@ export function GameTimer({ onTimeUp, isActive, onResetTimer, onToggleTimer }: G
   const { getTimeLeft, decrementTimer } = useGameStore();
   const [mounted, setMounted] = useState(false);
   const [whistleHasPlayed, setWhistleHasPlayed] = useState(false);
-  const [timerPaused, setTimerPaused] = useState(true);
 
   // Set mounted to true after component mounts
   useEffect(() => {
@@ -38,8 +38,8 @@ export function GameTimer({ onTimeUp, isActive, onResetTimer, onToggleTimer }: G
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
 
-    // Only run the external timer if the game is active AND the timer is not paused
-    if (isActive && mounted && !timerPaused) {
+    // Only run the timer if the game is active
+    if (isActive && mounted) {
       intervalId = setInterval(() => {
         const currentTime = getTimeLeft();
 
@@ -60,7 +60,7 @@ export function GameTimer({ onTimeUp, isActive, onResetTimer, onToggleTimer }: G
     }
 
     return () => clearInterval(intervalId);
-  }, [isActive, mounted, timerPaused, getTimeLeft, decrementTimer, onTimeUp, whistleHasPlayed]);
+  }, [isActive, mounted, getTimeLeft, decrementTimer, onTimeUp, whistleHasPlayed]);
 
   // Reset whistle flag when timer is reset to full time
   useEffect(() => {
@@ -70,55 +70,45 @@ export function GameTimer({ onTimeUp, isActive, onResetTimer, onToggleTimer }: G
     }
   }, [getTimeLeft]);
 
-  const handleTogglePlay = (isPaused: boolean) => {
-    setTimerPaused(isPaused);
-  };
-
-  const handleToggle = () => {
-    onToggleTimer?.();
-  };
-
   const timeLeft = getTimeLeft();
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
 
   return (
     <div className="flex items-center justify-center rounded-lg w-full bg-gray-900">
       {mounted && (
-        <GameTimerComponent 
-          timeLeft={timeLeft}
-          isActive={isActive}
-          onReset={onResetTimer}
-          onToggle={handleToggle}
-          onTogglePlay={handleTogglePlay}
-        />
+        <div className="scale-75 transform origin-center w-full">
+          <style jsx>{`
+            .timer-display :global(.digital-font) {
+              color: ${isActive ? '#16a34a' : '#dc2626'} !important;
+            }
+          `}</style>
+          <div className="w-full font-sans timer-display bg-gray-900 rounded-lg">
+            <div className="relative flex items-center justify-center w-full">
+              <button
+                className="absolute left-0 border-none rounded w-14 h-14 cursor-pointer flex items-center justify-center transition-all duration-200 text-gray-400 bg-transparent hover:text-white hover:bg-gray-700 hover:bg-opacity-50"
+                onClick={onResetTimer}
+                title="Reiniciar tiempo"
+              >
+                <ResetIcon width={40} height={40} />
+              </button>
+              <TimerDisplay minutes={minutes} seconds={seconds} isPaused={!isActive} isMounted={mounted} />
+              <button
+                className="absolute right-0 border-none rounded hover:bg-red-700 hover:bg-opacity-50 w-14 h-14 cursor-pointer flex items-center justify-center transition-all duration-200 text-gray-400 bg-transparent hover:text-white"
+                onClick={onToggleTimer}
+                title={isActive ? "Pausar" : "Continuar"}
+                disabled={timeLeft === 0}
+              >
+                {isActive ? (
+                  <PauseIcon width={40} height={40} />
+                ) : (
+                  <PlayIcon width={40} height={40} />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-    </div>
-  );
-}
-
-interface GameTimerComponentProps {
-  timeLeft: number;
-  isActive: boolean;
-  onReset: () => void;
-  onToggle?: () => void;
-  onTogglePlay: (isPaused: boolean) => void;
-}
-
-function GameTimerComponent({ timeLeft, isActive, onReset, onToggle, onTogglePlay }: GameTimerComponentProps) {
-  return (
-    <div className="scale-75 transform origin-center w-full">
-      <style jsx>{`
-        .timer-display :global(.digital-font) {
-          color: ${isActive ? '#16a34a' : '#dc2626'} !important;
-        }
-      `}</style>
-      <Timer
-        className="timer-display"
-        initialMinutes={7}
-        onReset={onReset}
-        onToggle={onToggle}
-        onTogglePlay={onTogglePlay}
-        timeLeft={timeLeft}
-      />
     </div>
   );
 }

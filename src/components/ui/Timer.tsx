@@ -34,10 +34,15 @@ const Timer: React.FC<TimerProps> = ({
     setIsMounted(true);
   }, []);
 
-  // Handle external timeLeft changes only when not paused
+  // Handle external timeLeft changes
   useEffect(() => {
     if (timeLeft !== undefined) {
-      if (!isPaused) {
+      // If timeLeft is reset to initial time, reset the component state
+      if (timeLeft === initialTime) {
+        setTimeRemaining(initialTime);
+        setIsPaused(true);
+        setPausedTime(null);
+      } else if (!isPaused) {
         // If not paused, use external timeLeft
         setTimeRemaining(timeLeft);
       } else {
@@ -47,7 +52,14 @@ const Timer: React.FC<TimerProps> = ({
         }
       }
     }
-  }, [timeLeft, isPaused, pausedTime]);
+  }, [timeLeft, isPaused, pausedTime, initialTime]);
+
+  // Reset component state when initialTime changes
+  useEffect(() => {
+    setTimeRemaining(initialTime);
+    setIsPaused(true);
+    setPausedTime(null);
+  }, [initialTime]);
 
   useEffect(() => {
     if (!isPaused && timeRemaining > 0) {

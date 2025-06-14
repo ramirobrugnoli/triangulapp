@@ -48,16 +48,12 @@ export function CurrentMatch() {
   const [mounted, setMounted] = useState(false);
   const notify = (message: string) => toast(message);
 
-  // Set mounted to true after component mounts to avoid hydration issues
   useEffect(() => {
     setMounted(true);
   }, []);
 
   const handleResetTimer = () => {
     resetTimer();
-    // Remove auto-start after reset
-    // setIsActive(true);
-    // startTimer();
   };
 
   const handleToggleTimer = () => {
@@ -71,11 +67,9 @@ export function CurrentMatch() {
   };
 
   const handleTimeUp = () => {
-    // Pausar el timer primero
     setIsActive(false);
     stopTimer();
     
-    // Determinar el resultado del partido
     let result: "A" | "B" | "draw";
     if (scores.teamA > scores.teamB) {
       result = "A";
@@ -89,10 +83,7 @@ export function CurrentMatch() {
       updateDailyScore(activeTeams.teamB.name, "draw");
     }
     
-    // Guardar el partido en el historial ANTES de rotar equipos
     saveMatchToHistory(result);
-    
-    // Rotar equipos
     rotateTeams(result);
     resetGame();
   };
