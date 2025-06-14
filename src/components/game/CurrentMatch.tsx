@@ -41,31 +41,6 @@ export function CurrentMatch() {
     getCurrentMatchGoals,
   } = useGameStore();
 
-  // Iniciar automáticamente el timer al montar el componente
-  useEffect(() => {
-    if (!isActive) {
-      setIsActive(true);
-      startTimer();
-    }
-  }, [isActive, setIsActive, startTimer]); // Solo ejecutar cuando cambien estas dependencias
-
-  const handleResetTimer = () => {
-    resetTimer();
-    // Reiniciar automáticamente después del reset
-    setIsActive(true);
-    startTimer();
-  };
-
-  const handleToggleTimer = () => {
-    if (isActive) {
-      setIsActive(false);
-      stopTimer();
-    } else {
-      setIsActive(true);
-      startTimer();
-    }
-  };
-
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<"A" | "B" | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -77,6 +52,23 @@ export function CurrentMatch() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleResetTimer = () => {
+    resetTimer();
+    // Remove auto-start after reset
+    // setIsActive(true);
+    // startTimer();
+  };
+
+  const handleToggleTimer = () => {
+    if (isActive) {
+      setIsActive(false);
+      stopTimer();
+    } else {
+      setIsActive(true);
+      startTimer();
+    }
+  };
 
   const handleTimeUp = () => {
     // Pausar el timer primero
