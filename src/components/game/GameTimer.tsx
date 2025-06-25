@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useGameStore } from '@/store/gameStore';
+import { useTimeLeft, useIsTimerRunning, useTimerActions } from '@/store/timerStore';
 import { ResetIcon, PauseIcon, PlayIcon } from '@/components/ui/icons';
 import TimerDisplay from '@/components/ui/TimerDisplay';
 
@@ -10,44 +10,48 @@ interface GameTimerProps {
 }
 
 export function GameTimer({ onTimeUp }: GameTimerProps) {
-  const { timer, startTimer, stopTimer, resetTimer } = useGameStore();
-  const { timeLeft, isRunning } = timer;
-
+  const timeLeft = useTimeLeft();
+  const isRunning = useIsTimerRunning();
+  const { start, pause, reset } = useTimerActions();
+  
   const [mounted, setMounted] = useState(false);
   const [whistleHasPlayed, setWhistleHasPlayed] = useState(false);
-  
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
     if (timeLeft <= 0) {
-      onTimeUp();
+      // Para evitar que onTimeUp se llame múltiples veces
+      if (isRunning) {
+        onTimeUp();
+      }
     }
-    // Play whistle when reaching exactly 1 minute (60 seconds)
+    
     if (timeLeft === 60 && !whistleHasPlayed) {
       playWhistle();
       setWhistleHasPlayed(true);
     }
     
-    // Reset whistle flag when timer is reset to full time
-    if (timeLeft >= useGameStore.getState().timer.MATCH_DURATION -1) { 
+    // Reset whistle flag when timer is reset
+    if (timeLeft >= (7 * 60) - 1) { 
         setWhistleHasPlayed(false);
     }
-  }, [timeLeft, onTimeUp, whistleHasPlayed]);
+  }, [timeLeft, onTimeUp, whistleHasPlayed, isRunning]);
 
   const handleToggle = () => {
     if (isRunning) {
-      stopTimer();
+      pause();
     } else {
-      startTimer();
+      start();
     }
   };
 
   const playWhistle = () => {
     try {
       const audio = new Audio('/assets/sounds/referee-whistle.mp3');
-      audio.volume = 0.7; // Set volume to 70%
+      audio.volume = 0.7;
       audio.play().catch(error => {
         console.log('Could not play whistle sound:', error);
       });
@@ -72,7 +76,7 @@ export function GameTimer({ onTimeUp }: GameTimerProps) {
             <div className="relative flex items-center justify-center w-full">
               <button
                 className="absolute left-0 border-none rounded w-14 h-14 cursor-pointer flex items-center justify-center transition-all duration-200 text-gray-400 bg-transparent hover:text-white hover:bg-gray-700 hover:bg-opacity-50"
-                onClick={resetTimer}
+                onClick={reset}
                 title="Reiniciar tiempo"
               >
                 <ResetIcon width={40} height={40} />
@@ -82,7 +86,7 @@ export function GameTimer({ onTimeUp }: GameTimerProps) {
                 className="absolute right-0 border-none rounded hover:bg-red-700 hover:bg-opacity-50 w-14 h-14 cursor-pointer flex items-center justify-center transition-all duration-200 text-gray-400 bg-transparent hover:text-white"
                 onClick={handleToggle}
                 title={isRunning ? "Pausar" : "Continuar"}
-                disabled={timeLeft === 0}
+                disabled={timeLeft === 0 && !isRunning}
               >
                 {isRunning ? (
                   <PauseIcon width={40} height={40} />
