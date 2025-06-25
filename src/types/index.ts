@@ -54,6 +54,7 @@ export interface TimerState {
   timeLeft: number;
   MATCH_DURATION: number;
   isRunning: boolean;
+  timerId: NodeJS.Timeout | null;
 }
 
 export interface GameTeam {

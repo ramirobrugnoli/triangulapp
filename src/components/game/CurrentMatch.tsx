@@ -52,20 +52,6 @@ export function CurrentMatch() {
     setMounted(true);
   }, []);
 
-  const handleResetTimer = () => {
-    resetTimer();
-  };
-
-  const handleToggleTimer = () => {
-    if (isActive) {
-      setIsActive(false);
-      stopTimer();
-    } else {
-      setIsActive(true);
-      startTimer();
-    }
-  };
-
   const handleTimeUp = () => {
     setIsActive(false);
     stopTimer();
@@ -160,9 +146,6 @@ export function CurrentMatch() {
       />
       <GameTimer 
         onTimeUp={handleTimeUp} 
-        isActive={isActive} 
-        onResetTimer={handleResetTimer}
-        onToggleTimer={handleToggleTimer}
       />
 
       <ScoreBoard
