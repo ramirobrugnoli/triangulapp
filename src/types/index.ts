@@ -49,6 +49,13 @@ export interface TeamInTriangular {
   position: number;
 }
 
+
+export interface TimerState {
+  timeLeft: number;
+  MATCH_DURATION: number;
+  isRunning: boolean;
+}
+
 export interface GameTeam {
   name: Team;
   members: TeamMember[];
@@ -76,6 +83,7 @@ export interface GameState {
     teamA: number;
     teamB: number;
   };
+  timer: TimerState;
   dailyScores: TeamScore[];
   isActive: boolean;
   teamBuilder: TeamBuilderState;
@@ -85,7 +93,7 @@ export interface GameState {
     waiting: GameTeam;
   };
   currentGoals: GoalsTracking;
-  currentMatchGoals: GoalsTracking;
+  currentMatchGoals: GoalsTracking; // Goles solo del partido actual
   lastWinner: string;
   lastDraw: string;
   selectedPlayers: Player[];

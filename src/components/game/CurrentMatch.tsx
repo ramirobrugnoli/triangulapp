@@ -1,7 +1,6 @@
 "use client";
 
 import { useGameStore } from "@/store/gameStore";
-import { useTimerActions } from "@/store/timerStore";
 import { GameTimer } from "./GameTimer";
 import { ScoreBoard } from "./ScoreBoard";
 import { DailyScoreTable } from "./DailyScoreTable";
@@ -30,6 +29,9 @@ export function CurrentMatch() {
     updateDailyScore,
     resetGame,
     setIsActive,
+    startTimer,
+    stopTimer,
+    resetTimer,
     registerGoal,
     finalizeTriangular,
     currentMatchGoals,
@@ -38,7 +40,6 @@ export function CurrentMatch() {
     saveMatchToHistory,
     getCurrentMatchGoals,
   } = useGameStore();
-  const { pause: pauseTimer } = useTimerActions();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<"A" | "B" | null>(null);
@@ -51,9 +52,23 @@ export function CurrentMatch() {
     setMounted(true);
   }, []);
 
+  const handleResetTimer = () => {
+    resetTimer();
+  };
+
+  const handleToggleTimer = () => {
+    if (isActive) {
+      setIsActive(false);
+      stopTimer();
+    } else {
+      setIsActive(true);
+      startTimer();
+    }
+  };
+
   const handleTimeUp = () => {
     setIsActive(false);
-    pauseTimer();
+    stopTimer();
     
     let result: "A" | "B" | "draw";
     if (scores.teamA > scores.teamB) {
@@ -91,7 +106,7 @@ export function CurrentMatch() {
     if (newScore >= 2) {
       // Pausar el timer primero
       setIsActive(false);
-      pauseTimer();
+      stopTimer();
       
       // Guardar el partido en el historial ANTES de rotar equipos
       saveMatchToHistory(team);
@@ -145,6 +160,9 @@ export function CurrentMatch() {
       />
       <GameTimer 
         onTimeUp={handleTimeUp} 
+        isActive={isActive} 
+        onResetTimer={handleResetTimer}
+        onToggleTimer={handleToggleTimer}
       />
 
       <ScoreBoard
