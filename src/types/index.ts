@@ -54,6 +54,9 @@ export interface TimerState {
   timeLeft: number;
   MATCH_DURATION: number;
   isRunning: boolean;
+  whistleHasPlayed: boolean;
+  onTimeUpCallback: (() => void) | null;
+  timerInterval: NodeJS.Timeout | null;
 }
 
 export interface GameTeam {
@@ -98,6 +101,12 @@ export interface GameState {
   lastDraw: string;
   selectedPlayers: Player[];
   matchHistory: MatchRecord[];
+  matchEndModal: {
+    isOpen: boolean;
+    result: "A" | "B" | "draw" | null;
+    preCalculatedDrawChoice?: "A" | "B" | null;
+  };
+  socketResetFunction: (() => void) | null;
 }
 
 // Interfaces para la API y Backend

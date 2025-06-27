@@ -8,9 +8,12 @@ import { useState, useEffect } from "react";
 import { GoalScorerModal } from "./GoalScorerModal";
 import { DailyScorersTable } from "./DailyScorersTable";
 import { EditLastMatchModal } from "./EditLastMatchModal";
+import { MatchEndModal } from "./MatchEndModal";
 import { toast, ToastContainer } from "react-toastify";
 import { getColorByTeam } from "@/lib/helpers/helpers";
 import { MatchRecord } from "@/types";
+import "react-toastify/dist/ReactToastify.css";
+import { MatchHistory } from "./MatchHistory";
 
 function GoalIndicator({ goals }: { goals: number }) {
   if (goals === 0) return null;
@@ -22,98 +25,54 @@ export function CurrentMatch() {
   const {
     activeTeams,
     scores,
-    isActive,
+    setIsActive,
+    currentMatchGoals,
     dailyScores,
     updateScore,
-    rotateTeams,
-    updateDailyScore,
-    resetGame,
-    setIsActive,
-    startTimer,
-    stopTimer,
-    resetTimer,
     registerGoal,
+    getCurrentMatchGoals,
     finalizeTriangular,
-    currentMatchGoals,
+    stopTimer,
     getLastMatch,
     editLastMatch,
-    saveMatchToHistory,
-    getCurrentMatchGoals,
+    matchEndModal,
+    showMatchEndModal,
+    acceptMatchEnd,
+    lastWinner,
+    lastDraw,
+    getMatchHistory,
   } = useGameStore();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<"A" | "B" | null>(null);
+  const [mounted, setMounted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const notify = (message: string) => toast(message);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const handleResetTimer = () => {
-    resetTimer();
-  };
-
-  const handleToggleTimer = () => {
-    if (isActive) {
-      setIsActive(false);
-      stopTimer();
-    } else {
-      setIsActive(true);
-      startTimer();
-    }
-  };
-
-  const handleTimeUp = () => {
-    setIsActive(false);
-    stopTimer();
-    
-    let result: "A" | "B" | "draw";
-    if (scores.teamA > scores.teamB) {
-      result = "A";
-      updateDailyScore(activeTeams.teamA.name, "normalWin");
-    } else if (scores.teamB > scores.teamA) {
-      result = "B";
-      updateDailyScore(activeTeams.teamB.name, "normalWin");
-    } else {
-      result = "draw";
-      updateDailyScore(activeTeams.teamA.name, "draw");
-      updateDailyScore(activeTeams.teamB.name, "draw");
-    }
-    
-    saveMatchToHistory(result);
-    rotateTeams(result);
-    resetGame();
-  };
+  const notify = (message: string) => toast(message);
 
   const handleGoalClick = (team: "A" | "B") => {
     setSelectedTeam(team);
     setModalOpen(true);
   };
 
-    const handleGoalConfirm = (playerId: string) => {
+  const handleGoalConfirm = (playerId: string) => {
     const team = selectedTeam!;
     
-    // Registrar el gol individual primero
     registerGoal(playerId);
     
-    // Calcular el marcador del equipo basado en goles del partido actual
     const newScore = getCurrentMatchGoals(team);
     updateScore(team, newScore);
 
     if (newScore >= 2) {
-      // Pausar el timer primero
       setIsActive(false);
       stopTimer();
       
-      // Guardar el partido en el historial ANTES de rotar equipos
-      saveMatchToHistory(team);
-      
-      updateDailyScore(activeTeams[`team${team}`].name, "win");
-      rotateTeams(team);
-      resetGame();
+      showMatchEndModal(team);
     }
 
     setModalOpen(false);
@@ -158,12 +117,7 @@ export function CurrentMatch() {
         theme="dark"
         closeOnClick={true}
       />
-      <GameTimer 
-        onTimeUp={handleTimeUp} 
-        isActive={isActive} 
-        onResetTimer={handleResetTimer}
-        onToggleTimer={handleToggleTimer}
-      />
+      <GameTimer />
 
       <ScoreBoard
         teamA={getColorByTeam(activeTeams.teamA.name)}
@@ -187,6 +141,19 @@ export function CurrentMatch() {
         onClose={() => setEditModalOpen(false)}
         lastMatch={lastMatch}
         onSave={handleSaveEditedMatch}
+      />
+
+      <MatchEndModal
+        isOpen={matchEndModal.isOpen}
+        result={matchEndModal.result || "draw"}
+        teamA={activeTeams.teamA.name}
+        teamB={activeTeams.teamB.name}
+        onAccept={acceptMatchEnd}
+        gameState={{ 
+          lastWinner, 
+          lastDraw, 
+          preCalculatedDrawChoice: matchEndModal.preCalculatedDrawChoice ?? null 
+        }}
       />
 
       <div className="grid grid-cols-2 gap-4">
@@ -269,6 +236,14 @@ export function CurrentMatch() {
             Finalizar Triangular
           </button>
         </div>
+
+        {/* Historial de Partidos */}
+        {mounted && (
+          <div className="mt-8">
+            <h2 className="text-xl font-bold mb-4">Historial de Partidos</h2>
+            <MatchHistory matches={getMatchHistory()} />
+          </div>
+        )}
       </div>
     </>
   );

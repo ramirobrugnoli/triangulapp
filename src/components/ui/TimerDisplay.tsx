@@ -5,7 +5,6 @@ interface TimerDisplayProps {
   seconds: number;
   className?: string;
   isPaused?: boolean;
-  isMounted?: boolean;
 }
 
 const TimerDisplay: React.FC<TimerDisplayProps> = ({ 
@@ -13,7 +12,6 @@ const TimerDisplay: React.FC<TimerDisplayProps> = ({
   seconds, 
   className = '', 
   isPaused = false,
-  isMounted = true 
 }) => {
   // Formatear minutos y segundos con padding
   const displayMinutes = String(minutes).padStart(2, '0');
@@ -21,7 +19,6 @@ const TimerDisplay: React.FC<TimerDisplayProps> = ({
 
   // Determinar color basado en el estado
   const getColorClass = () => {
-    if (!isMounted) return 'text-gray-400';
     return isPaused ? 'text-red-600' : 'text-green-600';
   };
 

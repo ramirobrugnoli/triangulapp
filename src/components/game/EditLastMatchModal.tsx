@@ -136,20 +136,16 @@ export function EditLastMatchModal({
   );
 
   // Logic for button visibility
-  const teamAHasWon = editedScores.teamA >= 2;
-  const teamBHasWon = editedScores.teamB >= 2;
-  const gameHasWinner = teamAHasWon || teamBHasWon;
+  const gameHasWinner = lastMatch?.result !== "draw";
+  const showTeamAAddButtons = true;
+  const showTeamBAddButtons = true;
   
   // Goals are fully distributed when individual goals = team score
   const teamAGoalsFullyDistributed = totalGoalsTeamA === editedScores.teamA;
   const teamBGoalsFullyDistributed = totalGoalsTeamB === editedScores.teamB;
   
-  // Show score add buttons only if no team has won yet (can always add goals until someone wins)
-  const showTeamAAddButtons = !gameHasWinner;
-  const showTeamBAddButtons = !gameHasWinner;
-  
   // Show player goal add buttons if there are goals available to distribute for that team
-  // This allows redistribution of goals and goals for losing teams
+  // This allows redistribution of goals and adding goals for any team score > 0
   const showTeamAPlayerAddButtons = totalGoalsTeamA < editedScores.teamA && editedScores.teamA > 0;
   const showTeamBPlayerAddButtons = totalGoalsTeamB < editedScores.teamB && editedScores.teamB > 0;
 
@@ -196,8 +192,8 @@ export function EditLastMatchModal({
               </div>
               <div className="text-center text-sm text-gray-400 mt-2">
                 Goles: {totalGoalsTeamA}
-                {teamAHasWon && <span className="text-yellow-400 block">🏆 Ganador</span>}
-                {teamAGoalsFullyDistributed && !teamAHasWon && editedScores.teamA > 0 && <span className="text-green-400 block">✓ Goles distribuidos</span>}
+                {gameHasWinner && <span className="text-yellow-400 block">🏆 Ganador</span>}
+                {teamAGoalsFullyDistributed && !gameHasWinner && editedScores.teamA > 0 && <span className="text-green-400 block">✓ Goles distribuidos</span>}
               </div>
             </div>
 
@@ -227,8 +223,8 @@ export function EditLastMatchModal({
               </div>
               <div className="text-center text-sm text-gray-400 mt-2">
                 Goles: {totalGoalsTeamB}
-                {teamBHasWon && <span className="text-yellow-400 block">🏆 Ganador</span>}
-                {teamBGoalsFullyDistributed && !teamBHasWon && editedScores.teamB > 0 && <span className="text-green-400 block">✓ Goles distribuidos</span>}
+                {gameHasWinner && <span className="text-yellow-400 block">🏆 Ganador</span>}
+                {teamBGoalsFullyDistributed && !gameHasWinner && editedScores.teamB > 0 && <span className="text-green-400 block">✓ Goles distribuidos</span>}
               </div>
             </div>
           </div>

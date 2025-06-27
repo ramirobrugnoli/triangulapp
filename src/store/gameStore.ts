@@ -34,13 +34,22 @@ interface GameStore extends GameState {
   getTotalMatches: (teamName: Team) => number;
   getWinPercentage: (teamName: Team) => number;
 
+  // Funciones de timer (extendidas)
   setTimeLeft: (time: number) => void;
   resetTimer: () => void;
   decrementTimer: () => void;
-
   startTimer: () => void;
   stopTimer: () => void;
   getTimeLeft: () => number;
+  getIsTimerRunning: () => boolean;
+  
+  // Nuevas funciones de timer
+  initializeTimer: (onTimeUpCallback: () => void) => void;
+  toggleTimer: () => void;
+  playWhistle: () => void;
+  resetWhistleFlag: () => void;
+  handleTimeUp: () => void;
+  
   updateTeamPlayers: (teamBuilder: TeamBuilderState) => void;
   assignTeamsToGame: (teams: {
     teamA: Team;
@@ -61,9 +70,18 @@ interface GameStore extends GameState {
   getLastMatch: () => MatchRecord | null;
   saveMatchToHistory: (result: "A" | "B" | "draw") => void;
   editLastMatch: (editedMatch: MatchRecord) => void;
+  getMatchHistory: () => MatchRecord[];
   
   // Funciones para goles del partido actual
   getCurrentMatchGoals: (team: "A" | "B") => number;
+
+  // Funciones para el modal de fin de partido
+  showMatchEndModal: (result: "A" | "B" | "draw") => void;
+  hideMatchEndModal: () => void;
+  acceptMatchEnd: () => void;
+
+  // Funciones para socket timer
+  setSocketResetFunction: (resetFn: (() => void) | null) => void;
 }
 
 const MATCH_DURATION = 7 * 60;
@@ -87,6 +105,9 @@ const initialState: GameState = {
     timeLeft: MATCH_DURATION,
     MATCH_DURATION,
     isRunning: false,
+    whistleHasPlayed: false,
+    onTimeUpCallback: null,
+    timerInterval: null,
   },
   isActive: false,
   teamBuilder: {
@@ -101,6 +122,12 @@ const initialState: GameState = {
   lastDraw: "",
   selectedPlayers: [],
   matchHistory: [],
+  matchEndModal: {
+    isOpen: false,
+    result: null,
+    preCalculatedDrawChoice: null,
+  },
+  socketResetFunction: null,
 };
 
 export const useGameStore = create<GameStore>()(
@@ -152,69 +179,59 @@ export const useGameStore = create<GameStore>()(
               lastWinner = "B";
               lastDraw = "";
               break;
-            default:
-              if (lastWinner === "A") {
-                //Si lastWinner es A, debe jugar teamB contra waiting
-                newActiveTeams = {
-                  teamA: activeTeams.waiting,
-                  teamB: activeTeams.teamB,
-                  waiting: activeTeams.teamA,
-                };
-                lastWinner = "";
-                lastDraw = "B";
-              } else if (lastWinner === "B") {
-                //Si lastWinner es B, debe jugar teamA contra waiting
-                newActiveTeams = {
-                  teamA: activeTeams.teamA,
-                  teamB: activeTeams.waiting,
-                  waiting: activeTeams.teamB,
-                };
-                lastWinner = "";
-                lastDraw = "A";
-              } else if (lastDraw === "A") {
-                //Si empato el a en su segundo partido
-                newActiveTeams = {
-                  teamA: activeTeams.waiting,
-                  teamB: activeTeams.teamB,
-                  waiting: activeTeams.teamA,
-                };
-                lastDraw = "B";
-                lastWinner = "";
-              } else if (lastDraw === "B") {
-                //Si empato el b en su segundo partido
-                newActiveTeams = {
-                  teamA: activeTeams.teamA,
-                  teamB: activeTeams.waiting,
-                  waiting: activeTeams.teamB,
-                };
-                lastDraw = "A";
-                lastWinner = "";
-              } else {
-                // Primer cambio, usar una rotación determinística basada en timestamp
-                // Esto evita problemas de hidratación al usar Math.random()
-                const now = Date.now();
-                const randomTeam = (now % 2) === 0 ? "A" : "B";
-
-                if (randomTeam === "A") {
-                  // A espera, B y waiting juegan
+            default: // EMPATE
+              // En caso de empate: 
+              // - Sale el equipo que jugó en el partido anterior
+              // - Se queda el equipo que NO jugó en el partido anterior
+              // - Entra el equipo que estaba esperando
+              
+              // Si es el primer partido (no hay lastWinner ni lastDraw), usar valor pre-calculado o Math.random
+              if (lastWinner === "" && lastDraw === "") {
+                // Usar el valor pre-calculado del modal si está disponible
+                const preCalculated = state.matchEndModal.preCalculatedDrawChoice;
+                const randomChoice = preCalculated ? preCalculated === "B" : Math.random() < 0.5;
+                
+                if (randomChoice) {
+                  // A sale, B se queda, waiting entra
                   newActiveTeams = {
                     teamA: activeTeams.waiting,
                     teamB: activeTeams.teamB,
                     waiting: activeTeams.teamA,
                   };
-                  lastDraw = "B";
+                  lastDraw = "B"; // B se queda
                 } else {
-                  // B espera, A y waiting juegan
+                  // B sale, A se queda, waiting entra  
                   newActiveTeams = {
                     teamA: activeTeams.teamA,
                     teamB: activeTeams.waiting,
                     waiting: activeTeams.teamB,
                   };
-                  lastDraw = "A";
+                  lastDraw = "A"; // A se queda
                 }
-
-                lastWinner = "";
+              } else {
+                // El equipo que jugó en el partido anterior sale
+                // El que NO jugó en el partido anterior se queda
+                
+                if (lastWinner === "A" || lastDraw === "A") {
+                  // A había jugado en el partido anterior → A sale, B se queda
+                  newActiveTeams = {
+                    teamA: activeTeams.waiting,
+                    teamB: activeTeams.teamB,
+                    waiting: activeTeams.teamA,
+                  };
+                  lastDraw = "B"; // B se queda
+                } else if (lastWinner === "B" || lastDraw === "B") {
+                  // B había jugado en el partido anterior → B sale, A se queda  
+                  newActiveTeams = {
+                    teamA: activeTeams.teamA,
+                    teamB: activeTeams.waiting,
+                    waiting: activeTeams.teamB,
+                  };
+                  lastDraw = "A"; // A se queda
+                }
               }
+              lastWinner = "";
+              break;
           }
           return {
             ...state,
@@ -283,15 +300,25 @@ export const useGameStore = create<GameStore>()(
           },
         })),
 
-      resetTimer: () =>
+      resetTimer: () => {
+        const state = get();
+        
+        // Limpiar intervalo si existe
+        if (state.timer.timerInterval) {
+          clearInterval(state.timer.timerInterval);
+        }
+        
         set((state) => ({
           ...state,
           timer: {
             ...state.timer,
             timeLeft: state.timer.MATCH_DURATION,
             isRunning: false,
+            whistleHasPlayed: false,
+            timerInterval: null,
           },
-        })),
+        }));
+      },
 
       decrementTimer: () =>
         set((state) => {
@@ -305,27 +332,141 @@ export const useGameStore = create<GameStore>()(
           };
         }),
 
-      startTimer: () =>
+      startTimer: () => {
+        const state = get();
+        
+        // Limpiar intervalo existente si hay uno
+        if (state.timer.timerInterval) {
+          clearInterval(state.timer.timerInterval);
+        }
+
+        // Crear nuevo intervalo
+        const intervalId = setInterval(() => {
+          const currentState = get();
+          const currentTime = currentState.timer.timeLeft;
+
+          if (currentTime <= 0) {
+            // Tiempo terminado
+            get().stopTimer();
+            get().handleTimeUp();
+            return;
+          }
+
+          // Reproducir silbato en el minuto 1 (60 segundos)
+          if (currentTime === 60 && !currentState.timer.whistleHasPlayed) {
+            get().playWhistle();
+            set((state) => ({
+              ...state,
+              timer: {
+                ...state.timer,
+                whistleHasPlayed: true,
+              },
+            }));
+          }
+
+          // Decrementar tiempo
+          get().decrementTimer();
+        }, 1000);
+
         set((state) => ({
           ...state,
           timer: {
             ...state.timer,
             isRunning: true,
+            timerInterval: intervalId,
           },
-        })),
+        }));
+      },
 
-      stopTimer: () =>
+      stopTimer: () => {
+        const state = get();
+        if (state.timer.timerInterval) {
+          clearInterval(state.timer.timerInterval);
+        }
+        
         set((state) => ({
           ...state,
           timer: {
             ...state.timer,
             isRunning: false,
+            timerInterval: null,
           },
-        })),
+        }));
+      },
 
       getTimeLeft: () => {
         const state = get();
         return state.timer.timeLeft;
+      },
+
+      getIsTimerRunning: () => {
+        const state = get();
+        return state.timer.isRunning;
+      },
+
+      // Nuevas funciones de timer
+      initializeTimer: (onTimeUpCallback: () => void) => {
+        const currentState = get();
+        // Solo actualizar si el callback es diferente
+        if (currentState.timer.onTimeUpCallback !== onTimeUpCallback) {
+          set((state) => ({
+            ...state,
+            timer: {
+              ...state.timer,
+              onTimeUpCallback,
+            },
+          }));
+        }
+      },
+
+      toggleTimer: () => {
+        const state = get();
+        if (state.timer.isRunning) {
+          get().stopTimer();
+          get().setIsActive(false);
+        } else {
+          get().startTimer();
+          get().setIsActive(true);
+        }
+      },
+
+      playWhistle: () => {
+        try {
+          const audio = new Audio('/assets/sounds/referee-whistle.mp3');
+          audio.volume = 0.7;
+          audio.play().catch(error => {
+            console.log('Could not play whistle sound:', error);
+          });
+        } catch (error) {
+          console.log('Error creating audio:', error);
+        }
+      },
+
+      resetWhistleFlag: () => {
+        set((state) => ({
+          ...state,
+          timer: {
+            ...state.timer,
+            whistleHasPlayed: false,
+          },
+        }));
+      },
+
+      handleTimeUp: () => {
+        const state = get();
+        const { scores } = state;
+        let result: "A" | "B" | "draw";
+        
+        if (scores.teamA > scores.teamB) {
+          result = "A";
+        } else if (scores.teamB > scores.teamA) {
+          result = "B";
+        } else {
+          result = "draw";
+        }
+        
+        // Mostrar modal en lugar de procesar inmediatamente
+        get().showMatchEndModal(result);
       },
 
       setIsActive: (active) => {
@@ -337,20 +478,33 @@ export const useGameStore = create<GameStore>()(
         set((state) => ({ ...state, isActive: active }));
       },
 
-      resetGame: () =>
+      resetGame: () => {
+        const state = get();
+        
+        // Limpiar intervalo si existe
+        if (state.timer.timerInterval) {
+          clearInterval(state.timer.timerInterval);
+        }
+        
+        // Resetear timer del socket si existe
+        if (state.socketResetFunction) {
+          state.socketResetFunction();
+        }
+        
         set((state) => ({
           ...state,
           scores: { teamA: 0, teamB: 0 },
-          currentMatchGoals: {}, // Resetear goles del partido actual
-          isActive: false, // Ensure game is not active
+          currentMatchGoals: {},
+          isActive: false,
           timer: {
             ...state.timer,
             timeLeft: state.timer.MATCH_DURATION,
-            isRunning: false, // Ensure timer is not running
+            isRunning: false,
+            whistleHasPlayed: false,
+            timerInterval: null,
           },
-          // NO resetear currentGoals aquí porque necesitamos mantener
-          // los goles acumulados del día para las estadísticas
-        })),
+        }));
+      },
 
       updateTeamPlayers: (teamBuilder) =>
         set((state) => ({
@@ -469,6 +623,11 @@ export const useGameStore = create<GameStore>()(
         });
         
         return teamGoals;
+      },
+
+      getMatchHistory: () => {
+        const state = get();
+        return [...state.matchHistory].reverse(); // Más reciente arriba
       },
 
       editLastMatch: (editedMatch: MatchRecord) => {
@@ -694,6 +853,7 @@ export const useGameStore = create<GameStore>()(
             activeTeams: newActiveTeams,
             lastWinner: newLastWinner,
             lastDraw: newLastDraw,
+            socketResetFunction: null,
           };
         });
       },
@@ -784,8 +944,86 @@ export const useGameStore = create<GameStore>()(
             timeLeft: state.timer.MATCH_DURATION,
             isRunning: false,
           },
+          socketResetFunction: null,
         }));
       },
+
+      // Funciones para el modal de fin de partido
+      showMatchEndModal: (result: "A" | "B" | "draw") => {
+        const state = get();
+        let preCalculatedChoice: "A" | "B" | null = null;
+        
+        // Si es empate y es el primer partido, pre-calcular el Math.random
+        if (result === "draw" && state.lastWinner === "" && state.lastDraw === "") {
+          preCalculatedChoice = Math.random() < 0.5 ? "B" : "A";
+        }
+        
+        set((state) => ({
+          ...state,
+          matchEndModal: {
+            isOpen: true,
+            result: result,
+            preCalculatedDrawChoice: preCalculatedChoice,
+          },
+        }));
+      },
+
+      hideMatchEndModal: () => {
+        set((state) => ({
+          ...state,
+          matchEndModal: {
+            isOpen: false,
+            result: null,
+            preCalculatedDrawChoice: null,
+          },
+        }));
+      },
+
+      acceptMatchEnd: () => {
+        const state = get();
+        const { matchEndModal, scores, activeTeams } = state;
+        
+        if (!matchEndModal.result) return;
+        
+        const result = matchEndModal.result;
+        
+        // Guardar el partido al historial ANTES de procesar el resultado
+        get().saveMatchToHistory(result);
+        
+        // Procesar resultado del partido
+        if (result === "A") {
+          const goalDifference = scores.teamA - scores.teamB;
+          const scoreType = goalDifference === 1 ? "normalWin" : "win";
+          get().updateDailyScore(activeTeams.teamA.name, scoreType);
+        } else if (result === "B") {
+          const goalDifference = scores.teamB - scores.teamA;
+          const scoreType = goalDifference === 1 ? "normalWin" : "win";
+          get().updateDailyScore(activeTeams.teamB.name, scoreType);
+        } else {
+          get().updateDailyScore(activeTeams.teamA.name, "draw");
+          get().updateDailyScore(activeTeams.teamB.name, "draw");
+          // Cuando hay empate, resetear el timer para que el próximo partido empiece desde cero
+          get().resetTimer();
+        }
+        
+        // Rotar equipos
+        get().rotateTeams(result);
+        
+        // Resetear el juego para el próximo partido
+        get().resetGame();
+        
+        // Cerrar modal
+        get().hideMatchEndModal();
+      },
+
+      // Funciones para socket timer
+      setSocketResetFunction: (resetFn: (() => void) | null) => {
+        set((state) => ({
+          ...state,
+          socketResetFunction: resetFn,
+        }));
+      },
+
     }),
 
     {
@@ -803,6 +1041,7 @@ export const useGameStore = create<GameStore>()(
         matchHistory: state.matchHistory,
         lastWinner: state.lastWinner,
         lastDraw: state.lastDraw,
+        matchEndModal: state.matchEndModal,
       }),
     }
   )

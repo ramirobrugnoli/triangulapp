@@ -73,7 +73,7 @@ export function PlayerTriangularHistory({ playerId, playerName }: PlayerTriangul
       <div className="bg-gray-800 rounded-lg p-6">
         <h3 className="text-lg font-semibold mb-4">Triangulares Jugados</h3>
         <div className="flex justify-center items-center h-24">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+          <div role="status" aria-hidden="true" className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
         </div>
       </div>
     );
