@@ -10,7 +10,7 @@ const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
 const gameTimers = new Map();
-const MATCH_DURATION = 0.5 * 60; // 7 minutos
+const MATCH_DURATION = 7 * 60; // 7 minutos
 
 app.prepare().then(() => {
   const httpServer = createServer((req, res) => {
