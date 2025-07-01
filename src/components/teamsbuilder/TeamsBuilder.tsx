@@ -20,6 +20,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { PlayerStatsService } from "@/lib/services/playerStats";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 
 interface TeamBuilderState {
   available: Player[];
@@ -221,6 +222,7 @@ export function TeamsBuilder() {
   const [playerRatings, setPlayerRatings] = useState<{ [playerId: string]: number }>({});
   const [draggedPlayer, setDraggedPlayer] = useState<Player | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const { setTeams: setGlobalTeams, selectedPlayers } = useGameStore();
   const router = useRouter();
   const notify = (message: string) => toast(message);
@@ -606,7 +608,7 @@ export function TeamsBuilder() {
           closeOnClick={true}
         />
         <div className="flex justify-center h-full">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500" />
+        <LoadingSpinner />
         </div>
       </>
     );
@@ -620,6 +622,7 @@ export function TeamsBuilder() {
         theme="dark"
         closeOnClick={true}
       />
+      
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -653,29 +656,29 @@ export function TeamsBuilder() {
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-4">
-            {["team1", "team2", "team3"].map((teamId, index) => (
-              <div key={teamId} className="flex flex-col">
-                <DroppableTeam
-                  id={teamId}
-                  title={`Equipo ${index + 1}`}
-                  playerCount={teams[teamId].length}
-                  rating={calculateTeamRating(teams[teamId])}
-                  isOverflow={teams[teamId].length > 5}
-                >
-                  {teams[teamId].map((player) => (
-                    <DraggablePlayer
-                      key={player.id}
-                      player={player}
-                      isSelected={selectedPlayer?.id === player.id}
-                      draggedPlayer={draggedPlayer}
-                      findPlayerTeam={findPlayerTeam}
-                    />
-                  ))}
-                </DroppableTeam>
-              </div>
-            ))}
-          </div>
+        <div className="grid grid-cols-3 gap-4">
+          {["team1", "team2", "team3"].map((teamId, index) => (
+            <div key={teamId} className="flex flex-col">
+              <DroppableTeam
+                id={teamId}
+                title={`Equipo ${index + 1}`}
+                playerCount={teams[teamId].length}
+                rating={calculateTeamRating(teams[teamId])}
+                isOverflow={teams[teamId].length > 5}
+              >
+                {teams[teamId].map((player) => (
+                  <DraggablePlayer
+                    key={player.id}
+                    player={player}
+                    isSelected={selectedPlayer?.id === player.id}
+                    draggedPlayer={draggedPlayer}
+                    findPlayerTeam={findPlayerTeam}
+                  />
+                ))}
+              </DroppableTeam>
+            </div>
+          ))}
+        </div>
 
           <button
             onClick={handleSuggestTeamsByStats}
