@@ -9,15 +9,15 @@ export default function AnotadorPage() {
 
   return (
     <div className="space-y-6">
+      <BalancingInfoModal 
+        isOpen={isInfoModalOpen} 
+        onClose={() => setIsInfoModalOpen(false)} 
+        />
       <div className="flex flex-start items-center gap-4 align-middle"> 
 
 
       <h1 className="text-2xl font-bold">Armador de Equipos</h1>
 
-      <BalancingInfoModal 
-        isOpen={isInfoModalOpen} 
-        onClose={() => setIsInfoModalOpen(false)} 
-        />
 
       <div className="flex justify-center items-center space-x-3">
         <button 

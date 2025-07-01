@@ -11,14 +11,14 @@ export const BalancingInfoModal: React.FC<BalancingInfoModalProps> = ({ isOpen, 
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+    <div className="pt-32 fixed top-0 left-0 right-0 bottom-0 bg-black bg-opacity-50 z-50 flex justify-center items-center overflow-y-auto">
       <div className="bg-gray-800 rounded-lg p-6 max-w-lg w-full text-white">
-        <h2 className="text-xl font-bold mb-4">¿Cómo funciona el balanceo con IA?</h2>
-        <div className="space-y-4 text-gray-300">
+        <h2 className="text-lg font-bold mb-4">¿Cómo funciona el balanceo con IA?</h2>
+        <div className="space-y-3 text-gray-300 text-sm">
           <p>
             El sistema de balanceo utiliza el &quot;rating&quot; de cada jugador para distribuir a los jugadores de la forma más equitativa posible. El rating se calcula con la siguiente fórmula:
           </p>
-          <p className="text-center font-mono bg-gray-900 p-2 rounded-md text-sm">
+          <p className="text-center font-mono bg-gray-900 p-2 rounded-md text-xs">
             (Puntos × 0.4) + (% Victorias × 0.35) + (Goles/Partido × 25)
           </p>
           <p>Los componentes del rating son:</p>
@@ -51,7 +51,7 @@ export const BalancingInfoModal: React.FC<BalancingInfoModalProps> = ({ isOpen, 
         <div className="mt-6 text-right">
           <button
             onClick={onClose}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-all"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-all text-sm"
           >
             Cerrar
           </button>
