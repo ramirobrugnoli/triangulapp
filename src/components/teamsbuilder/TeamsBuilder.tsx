@@ -222,7 +222,6 @@ export function TeamsBuilder() {
   const [playerRatings, setPlayerRatings] = useState<{ [playerId: string]: number }>({});
   const [draggedPlayer, setDraggedPlayer] = useState<Player | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const { setTeams: setGlobalTeams, selectedPlayers } = useGameStore();
   const router = useRouter();
   const notify = (message: string) => toast(message);
