@@ -983,23 +983,18 @@ describe('gameStore', () => {
 
     it('should call socket reset function when resetting game', () => {
       const store = useGameStore.getState();
-      const mockSocketReset = jest.fn();
-      
-      // Configurar función socket
-      store.setSocketResetFunction(mockSocketReset);
       
       // Resetear juego
       store.resetGame();
       
-      // Verificar que se llamó la función socket
-      expect(mockSocketReset).toHaveBeenCalledTimes(1);
+      // Verificar que el juego se resetea correctamente
+      const state = useGameStore.getState();
+      expect(state.scores.teamA).toBe(0);
+      expect(state.scores.teamB).toBe(0);
     });
 
-    it('should not crash when no socket reset function is set', () => {
+    it('should not crash when resetting game', () => {
       const store = useGameStore.getState();
-      
-      // Asegurarse de que no hay función socket
-      store.setSocketResetFunction(null);
       
       // Resetear juego debería funcionar sin problemas
       expect(() => {
@@ -1416,6 +1411,58 @@ describe('gameStore', () => {
       expect(state.matchEndModal.isOpen).toBe(true);
       expect(state.matchEndModal.result).toBe("draw");
       expect(state.matchEndModal.preCalculatedDrawChoice).toBe(null);
+    });
+  });
+
+  describe('Cancel Triangular', () => {
+    it('should cancel triangular and reset all data except available players', () => {
+      const store = useGameStore.getState();
+      
+      // Setup data to be canceled
+      store.updateScore('A', 2);
+      store.updateScore('B', 1);
+      store.updateDailyScore('Equipo 1', 'win');
+      store.updateDailyScore('Equipo 2', 'draw');
+      store.registerGoal('player1');
+      store.saveMatchToHistory('A');
+      store.setIsActive(true);
+      
+      // Add some available players
+      const mockPlayers: Player[] = [
+        { id: '1', name: 'Player 1', stats: { matches: 0, goals: 0, wins: 0, draws: 0, losses: 0, points: 0 } },
+        { id: '2', name: 'Player 2', stats: { matches: 0, goals: 0, wins: 0, draws: 0, losses: 0, points: 0 } },
+      ];
+      store.updateAvailablePlayers(mockPlayers);
+      
+      // Cancel triangular
+      store.cancelTriangular();
+      
+      const state = useGameStore.getState();
+      
+      // Verify complete reset
+      expect(state.scores.teamA).toBe(0);
+      expect(state.scores.teamB).toBe(0);
+      expect(state.dailyScores.every(score => score.points === 0)).toBe(true);
+      expect(state.dailyScores.every(score => score.wins === 0)).toBe(true);
+      expect(state.dailyScores.every(score => score.draws === 0)).toBe(true);
+      expect(state.currentGoals).toEqual({});
+      expect(state.currentMatchGoals).toEqual({});
+      expect(state.matchHistory).toEqual([]);
+      expect(state.isActive).toBe(false);
+      expect(state.lastWinner).toBe("");
+      expect(state.lastDraw).toBe("");
+      expect(state.timer.timeLeft).toBe(420); // MATCH_DURATION
+      expect(state.timer.isRunning).toBe(false);
+      expect(state.timer.startTime).toBe(null);
+      expect(state.matchEndModal.isOpen).toBe(false);
+      
+      // Team assignments should be reset
+      expect(state.teamBuilder.team1).toEqual([]);
+      expect(state.teamBuilder.team2).toEqual([]);
+      expect(state.teamBuilder.team3).toEqual([]);
+      
+      // Available players should be preserved
+      expect(state.teamBuilder.available).toEqual(mockPlayers);
     });
   });
 }); 

@@ -80,8 +80,10 @@ interface GameStore extends GameState {
   hideMatchEndModal: () => void;
   acceptMatchEnd: () => void;
 
-  // Funciones para socket timer
-  setSocketResetFunction: (resetFn: (() => void) | null) => void;
+  // Funciones para cancelar triangular
+  cancelTriangular: () => void;
+
+
 }
 
 const MATCH_DURATION = 7 * 60;
@@ -107,6 +109,7 @@ const initialState: GameState = {
     isRunning: false,
     whistleHasPlayed: false,
     onTimeUpCallback: null,
+    startTime: null,
     timerInterval: null,
   },
   isActive: false,
@@ -127,7 +130,6 @@ const initialState: GameState = {
     result: null,
     preCalculatedDrawChoice: null,
   },
-  socketResetFunction: null,
 };
 
 export const useGameStore = create<GameStore>()(
@@ -315,6 +317,7 @@ export const useGameStore = create<GameStore>()(
             timeLeft: state.timer.MATCH_DURATION,
             isRunning: false,
             whistleHasPlayed: false,
+            startTime: null,
             timerInterval: null,
           },
         }));
@@ -340,12 +343,29 @@ export const useGameStore = create<GameStore>()(
           clearInterval(state.timer.timerInterval);
         }
 
+        // Calcular el tiempo de inicio basado en el tiempo restante
+        const now = Date.now();
+        const startTime = now - ((state.timer.MATCH_DURATION - state.timer.timeLeft) * 1000);
+
         // Crear nuevo intervalo
         const intervalId = setInterval(() => {
           const currentState = get();
-          const currentTime = currentState.timer.timeLeft;
+          if (!currentState.timer.isRunning || !currentState.timer.startTime) return;
 
-          if (currentTime <= 0) {
+          const now = Date.now();
+          const elapsed = Math.floor((now - currentState.timer.startTime) / 1000);
+          const timeLeft = Math.max(0, currentState.timer.MATCH_DURATION - elapsed);
+
+          // Actualizar tiempo restante
+          set((state) => ({
+            ...state,
+            timer: {
+              ...state.timer,
+              timeLeft,
+            },
+          }));
+
+          if (timeLeft <= 0) {
             // Tiempo terminado
             get().stopTimer();
             get().handleTimeUp();
@@ -353,7 +373,7 @@ export const useGameStore = create<GameStore>()(
           }
 
           // Reproducir silbato en el minuto 1 (60 segundos)
-          if (currentTime === 60 && !currentState.timer.whistleHasPlayed) {
+          if (timeLeft === 60 && !currentState.timer.whistleHasPlayed) {
             get().playWhistle();
             set((state) => ({
               ...state,
@@ -363,9 +383,6 @@ export const useGameStore = create<GameStore>()(
               },
             }));
           }
-
-          // Decrementar tiempo
-          get().decrementTimer();
         }, 1000);
 
         set((state) => ({
@@ -373,6 +390,7 @@ export const useGameStore = create<GameStore>()(
           timer: {
             ...state.timer,
             isRunning: true,
+            startTime,
             timerInterval: intervalId,
           },
         }));
@@ -486,10 +504,7 @@ export const useGameStore = create<GameStore>()(
           clearInterval(state.timer.timerInterval);
         }
         
-        // Resetear timer del socket si existe
-        if (state.socketResetFunction) {
-          state.socketResetFunction();
-        }
+
         
         set((state) => ({
           ...state,
@@ -501,6 +516,7 @@ export const useGameStore = create<GameStore>()(
             timeLeft: state.timer.MATCH_DURATION,
             isRunning: false,
             whistleHasPlayed: false,
+            startTime: null,
             timerInterval: null,
           },
         }));
@@ -853,7 +869,6 @@ export const useGameStore = create<GameStore>()(
             activeTeams: newActiveTeams,
             lastWinner: newLastWinner,
             lastDraw: newLastDraw,
-            socketResetFunction: null,
           };
         });
       },
@@ -943,8 +958,8 @@ export const useGameStore = create<GameStore>()(
             ...state.timer,
             timeLeft: state.timer.MATCH_DURATION,
             isRunning: false,
+            startTime: null,
           },
-          socketResetFunction: null,
         }));
       },
 
@@ -1016,13 +1031,22 @@ export const useGameStore = create<GameStore>()(
         get().hideMatchEndModal();
       },
 
-      // Funciones para socket timer
-      setSocketResetFunction: (resetFn: (() => void) | null) => {
-        set((state) => ({
-          ...state,
-          socketResetFunction: resetFn,
+      // Funciones para cancelar triangular
+      cancelTriangular: () => {
+        // Resetear completamente el estado del juego
+        set(() => ({
+          ...initialState,
+          // Mantener solo los jugadores disponibles del teamBuilder si los hay
+          teamBuilder: {
+            available: get().teamBuilder.available,
+            team1: [],
+            team2: [],
+            team3: [],
+          },
         }));
       },
+
+
 
     }),
 

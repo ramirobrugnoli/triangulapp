@@ -1,51 +1,35 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { GameTimer } from '@/components/game/GameTimer';
 import { useGameStore } from '@/store/gameStore';
-import { useTimerSocket } from '@/hooks/useTimerSocket';
 
 // Import testing-library functions properly
 import '@testing-library/jest-dom';
 
 jest.mock('@/store/gameStore');
-jest.mock('@/hooks/useTimerSocket');
 
 const mockUseGameStore = useGameStore as jest.MockedFunction<typeof useGameStore>;
-const mockUseTimerSocket = useTimerSocket as jest.MockedFunction<typeof useTimerSocket>;
 
 describe('GameTimer', () => {
-  const mockHandleTimeUp = jest.fn();
-  const mockPlayWhistle = jest.fn();
-  const mockStartTimer = jest.fn();
-  const mockStopTimer = jest.fn();
-  const mockResetTimer = jest.fn();
-  const mockResetWhistle = jest.fn();
   const mockToggleTimer = jest.fn();
+  const mockResetTimer = jest.fn();
   
   const defaultStoreState = {
-    handleTimeUp: mockHandleTimeUp,
-    playWhistle: mockPlayWhistle,
-    setSocketResetFunction: jest.fn(),
-  };
-
-  const defaultTimerSocketState = {
-    timerState: {
+    timer: {
       timeLeft: 480,
       isRunning: false,
       whistleHasPlayed: false,
-      gameId: 'current-match'
+      MATCH_DURATION: 420,
+      onTimeUpCallback: null,
+      startTime: null,
+      timerInterval: null,
     },
-    isConnected: true,
-    startTimer: mockStartTimer,
-    stopTimer: mockStopTimer,
-    resetTimer: mockResetTimer,
-    resetWhistle: mockResetWhistle,
     toggleTimer: mockToggleTimer,
+    resetTimer: mockResetTimer,
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseGameStore.mockReturnValue(defaultStoreState);
-    mockUseTimerSocket.mockReturnValue(defaultTimerSocketState);
   });
 
   it('renders correctly with initial state', () => {
@@ -53,16 +37,6 @@ describe('GameTimer', () => {
     
     expect(screen.getByTitle('Reiniciar tiempo')).toBeInTheDocument();
     expect(screen.getByTitle('Continuar')).toBeInTheDocument();
-  });
-
-  it('calls useTimerSocket with correct parameters', () => {
-    render(<GameTimer />);
-    
-    expect(mockUseTimerSocket).toHaveBeenCalledWith({
-      gameId: 'current-match',
-      onTimeUp: mockHandleTimeUp,
-      onWhistle: mockPlayWhistle
-    });
   });
 
   it('calls toggleTimer when play/pause button is clicked', () => {
@@ -84,13 +58,11 @@ describe('GameTimer', () => {
   });
 
   it('shows pause icon when timer is running', () => {
-    mockUseTimerSocket.mockReturnValue({
-      ...defaultTimerSocketState,
-      timerState: {
-        timeLeft: 480,
+    mockUseGameStore.mockReturnValue({
+      ...defaultStoreState,
+      timer: {
+        ...defaultStoreState.timer,
         isRunning: true,
-        whistleHasPlayed: false,
-        gameId: 'current-match'
       },
     });
 
@@ -105,35 +77,12 @@ describe('GameTimer', () => {
     expect(screen.getByTitle('Continuar')).toBeInTheDocument();
   });
 
-  it('shows connection status indicator', () => {
-    render(<GameTimer />);
-    
-    const connectionIndicator = screen.getByTitle('Conectado al servidor');
-    expect(connectionIndicator).toBeInTheDocument();
-    expect(connectionIndicator).toHaveClass('bg-green-500');
-  });
-
-  it('shows disconnected status when not connected', () => {
-    mockUseTimerSocket.mockReturnValue({
-      ...defaultTimerSocketState,
-      isConnected: false,
-    });
-
-    render(<GameTimer />);
-    
-    const connectionIndicator = screen.getByTitle('Desconectado del servidor');
-    expect(connectionIndicator).toBeInTheDocument();
-    expect(connectionIndicator).toHaveClass('bg-red-500');
-  });
-
   it('disables toggle button when time is 0', () => {
-    mockUseTimerSocket.mockReturnValue({
-      ...defaultTimerSocketState,
-      timerState: {
+    mockUseGameStore.mockReturnValue({
+      ...defaultStoreState,
+      timer: {
+        ...defaultStoreState.timer,
         timeLeft: 0,
-        isRunning: false,
-        whistleHasPlayed: false,
-        gameId: 'current-match'
       },
     });
 
@@ -141,5 +90,19 @@ describe('GameTimer', () => {
     
     const toggleButton = screen.getByTitle('Continuar');
     expect(toggleButton).toBeDisabled();
+  });
+
+  it('displays correct time format', () => {
+    mockUseGameStore.mockReturnValue({
+      ...defaultStoreState,
+      timer: {
+        ...defaultStoreState.timer,
+        timeLeft: 125, // 2 minutes and 5 seconds
+      },
+    });
+
+    render(<GameTimer />);
+    
+    expect(screen.getByText('02:05')).toBeInTheDocument();
   });
 }); 

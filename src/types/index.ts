@@ -56,6 +56,7 @@ export interface TimerState {
   isRunning: boolean;
   whistleHasPlayed: boolean;
   onTimeUpCallback: (() => void) | null;
+  startTime: number | null; // Timestamp cuando se inició el timer
   timerInterval: NodeJS.Timeout | null;
 }
 
@@ -106,7 +107,6 @@ export interface GameState {
     result: "A" | "B" | "draw" | null;
     preCalculatedDrawChoice?: "A" | "B" | null;
   };
-  socketResetFunction: (() => void) | null;
 }
 
 // Interfaces para la API y Backend

@@ -1,41 +1,18 @@
 "use client";
 
 import { useGameStore } from '@/store/gameStore';
-import { useTimerSocket } from '@/hooks/useTimerSocket';
 import { ResetIcon, PauseIcon, PlayIcon } from '@/components/ui/icons';
 import TimerDisplay from '@/components/ui/TimerDisplay';
-import { useEffect } from 'react';
 
 export function GameTimer() {
   const { 
-    handleTimeUp,
-    playWhistle,
-    setSocketResetFunction
-  } = useGameStore();
-
-  const {
-    timerState,
-    isConnected,
+    timer,
     toggleTimer,
     resetTimer
-  } = useTimerSocket({
-    gameId: 'current-match',
-    onTimeUp: handleTimeUp,
-    onWhistle: playWhistle
-  });
+  } = useGameStore();
 
-  // Registrar la función resetTimer del socket en el gameStore
-  useEffect(() => {
-    setSocketResetFunction(resetTimer);
-    
-    // Cleanup function para limpiar la referencia cuando el componente se desmonte
-    return () => {
-      setSocketResetFunction(null);
-    };
-  }, [resetTimer, setSocketResetFunction]);
-
-  const timeLeft = timerState.timeLeft;
-  const isTimerRunning = timerState.isRunning;
+  const timeLeft = timer.timeLeft;
+  const isTimerRunning = timer.isRunning;
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
 
@@ -47,12 +24,7 @@ export function GameTimer() {
             color: ${isTimerRunning ? '#16a34a' : '#dc2626'} !important;
             }
           `}</style>
-        {/* Indicador de conexión WebSocket */}
-        <div className="flex justify-center mb-2">
-          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} 
-               title={isConnected ? 'Conectado al servidor' : 'Desconectado del servidor'}>
-          </div>
-        </div>
+
           <div className="w-full font-sans timer-display bg-gray-900 rounded-lg">
             <div className="relative flex items-center justify-center w-full">
               <button
