@@ -21,6 +21,7 @@ import {
 } from "@dnd-kit/core";
 import { PlayerStatsService } from "@/lib/services/playerStats";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { getColorByTeam } from "@/lib/helpers/helpers";
 
 interface TeamBuilderState {
   available: Player[];
@@ -660,7 +661,7 @@ export function TeamsBuilder() {
             <div key={teamId} className="flex flex-col">
               <DroppableTeam
                 id={teamId}
-                title={`Equipo ${index + 1}`}
+                title={getColorByTeam(`Equipo ${index + 1}` as "Equipo 1" | "Equipo 2" | "Equipo 3")}
                 playerCount={teams[teamId].length}
                 rating={calculateTeamRating(teams[teamId])}
                 isOverflow={teams[teamId].length > 5}

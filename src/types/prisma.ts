@@ -31,6 +31,13 @@ import type { TriangularHistory } from "./index";
 export function mapTriangularToHistory(
   triangular: PrismaTriangularWithRelations
 ): TriangularHistory {
+  // Agrupar jugadores por equipo
+  const teamPlayers: Record<string, { id: string; name: string; team: Team }[]> = {};
+  triangular.players.forEach((p) => {
+    const team = p.team as Team;
+    if (!teamPlayers[team]) teamPlayers[team] = [];
+    teamPlayers[team].push({ id: p.playerId, name: p.player.name, team: team });
+  });
   return {
     id: triangular.id,
     date: triangular.date.toISOString(),
@@ -48,5 +55,6 @@ export function mapTriangularToHistory(
       goals: p.goals,
       team: p.team as Team,
     })),
+    teamPlayers,
   };
 }

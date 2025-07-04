@@ -126,7 +126,7 @@ describe("PlayerTriangularHistory", () => {
     // Click on the triangular card
     fireEvent.click(screen.getByText("1er Lugar").closest("div")!.parentElement!);
     
-    expect(mockPush).toHaveBeenCalledWith(`/historial?triangularId=1`);
+    expect(mockPush).toHaveBeenCalledWith(`/historial?triangularId=1&playerId=1`);
   });
 
   it("handles empty triangular history", async () => {

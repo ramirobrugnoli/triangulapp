@@ -39,32 +39,35 @@ const mockPrisma = jest.requireMock("@/lib/prisma").prisma;
 describe("triangularService", () => {
   const mockTriangularResult: TriangularResult = {
     date: new Date().toISOString(),
-    teams: {
-      first: {
+    teams: [
+      {
         name: "Equipo 1",
         players: [mockPlayers[0].id, mockPlayers[1].id],
         points: 6,
         wins: 2,
         normalWins: 1,
         draws: 0,
+        position: 1,
       },
-      second: {
+      {
         name: "Equipo 2",
         players: [mockPlayers[2].id, mockPlayers[3].id],
         points: 3,
         wins: 1,
         normalWins: 1,
         draws: 0,
+        position: 2,
       },
-      third: {
+      {
         name: "Equipo 3",
         players: [mockPlayers[4].id, mockPlayers[5].id],
         points: 0,
         wins: 0,
         normalWins: 0,
         draws: 0,
+        position: 3,
       },
-    },
+    ],
     scorers: {
       [mockPlayers[0].id]: 2,
       [mockPlayers[1].id]: 1,

@@ -1,5 +1,5 @@
 import { prisma } from "../prisma";
-import type { TriangularResult, TriangularHistory } from "@/types";
+import type { TriangularResult, TriangularHistory, Team } from "@/types";
 import type { PrismaTriangularWithRelations } from "@/types/prisma";
 import { mapTriangularToHistory } from "@/types/prisma";
 /* import type { PrismaClient } from "@prisma/client"; */
@@ -99,82 +99,40 @@ export const triangularService = {
           // 1. Crear el triangular y sus resultados de equipo en una sola operación
           const triangular = await tx.triangular.create({
             data: {
-              champion: result.teams.first.name,
+              champion: result.teams.find(t => t.position === 1)?.name ?? result.teams[0].name,
               teams: {
-                create: [
-                  {
-                    teamName: result.teams.first.name,
-                    points: result.teams.first.points,
-                    wins: result.teams.first.wins,
-                    normalWins: result.teams.first.normalWins,
-                    draws: result.teams.first.draws,
-                    position: 1,
-                  },
-                  {
-                    teamName: result.teams.second.name,
-                    points: result.teams.second.points,
-                    wins: result.teams.second.wins,
-                    normalWins: result.teams.second.normalWins,
-                    draws: result.teams.second.draws,
-                    position: 2,
-                  },
-                  {
-                    teamName: result.teams.third.name,
-                    points: result.teams.third.points,
-                    wins: result.teams.third.wins,
-                    normalWins: result.teams.third.normalWins,
-                    draws: result.teams.third.draws,
-                    position: 3,
-                  },
-                ],
+                create: result.teams.map(team => ({
+                  teamName: team.name,
+                  points: team.points,
+                  wins: team.wins,
+                  normalWins: team.normalWins,
+                  draws: team.draws,
+                  position: team.position,
+                })),
               },
             },
           });
 
           // 2. Crear todos los registros de jugadores en una sola operación
-          const playerTriangularData = [
-            ...result.teams.first.players.map((id) => ({
+          const playerTriangularData = result.teams.flatMap(team =>
+            team.players.map((id) => ({
               playerId: id,
               triangularId: triangular.id,
-              team: result.teams.first.name,
+              team: team.name,
               goals: result.scorers[id] || 0,
-              wins: result.teams.first.wins,
-              normalWins: result.teams.first.normalWins,
-              draws: result.teams.first.draws,
-              points: result.teams.first.points,
-            })),
-            ...result.teams.second.players.map((id) => ({
-              playerId: id,
-              triangularId: triangular.id,
-              team: result.teams.second.name,
-              goals: result.scorers[id] || 0,
-              wins: result.teams.second.wins,
-              normalWins: result.teams.second.normalWins,
-              draws: result.teams.second.draws,
-              points: result.teams.second.points,
-            })),
-            ...result.teams.third.players.map((id) => ({
-              playerId: id,
-              triangularId: triangular.id,
-              team: result.teams.third.name,
-              goals: result.scorers[id] || 0,
-              wins: result.teams.third.wins,
-              normalWins: result.teams.third.normalWins,
-              draws: result.teams.third.draws,
-              points: result.teams.third.points,
-            })),
-          ];
+              wins: team.wins,
+              normalWins: team.normalWins,
+              draws: team.draws,
+              points: team.points,
+            }))
+          );
 
           await tx.playerTriangular.createMany({
             data: playerTriangularData,
           });
 
           // 3. Obtener todos los jugadores que participaron en el triangular
-          const allPlayerIds = [
-            ...result.teams.first.players,
-            ...result.teams.second.players,
-            ...result.teams.third.players,
-          ];
+          const allPlayerIds = result.teams.flatMap(team => team.players);
 
           // 4. Calcular partidos jugados por cada jugador
           // En un triangular, cada equipo juega 2 partidos (contra los otros 2 equipos)
@@ -183,14 +141,8 @@ export const triangularService = {
           // 5. Actualizar las estadísticas de todos los jugadores que participaron
           for (const playerId of allPlayerIds) {
             // Determinar en qué equipo jugó el jugador y sus estadísticas
-            let playerTeamStats;
-            if (result.teams.first.players.includes(playerId)) {
-              playerTeamStats = result.teams.first;
-            } else if (result.teams.second.players.includes(playerId)) {
-              playerTeamStats = result.teams.second;
-            } else {
-              playerTeamStats = result.teams.third;
-            }
+            const playerTeamStats = result.teams.find(team => team.players.includes(playerId));
+            if (!playerTeamStats) continue;
 
             await tx.player.update({
               where: { id: playerId },
@@ -231,11 +183,6 @@ export const triangularService = {
               select: {
                 name: true,
               },
-            },
-          },
-          where: {
-            goals: {
-              gt: 0,
             },
           },
           orderBy: {
@@ -280,53 +227,61 @@ export const triangularService = {
     return mapTriangularToHistory(triangular);
   },
 
-  async updateTriangular(id: string, updateData: { champion?: string; date?: string }) {
-    const triangular = await prisma.triangular.update({
+  async updateTriangular(id: string, updateData: { champion?: string; date?: string; teams?: { [team in Team]: { id: string; name: string }[] }; scorers?: { [playerId: string]: { goals: number; team: Team } } }) {
+    // Actualizar datos básicos
+    await prisma.triangular.update({
       where: { id },
       data: {
         ...(updateData.champion && { champion: updateData.champion }),
         ...(updateData.date && { date: new Date(updateData.date) }),
       },
       include: {
-        teams: {
-          orderBy: {
-            position: "asc",
-          },
-        },
-        players: {
-          include: {
-            player: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
+        teams: { orderBy: { position: "asc" } },
+        players: { include: { player: { select: { id: true, name: true } } } },
       },
     });
-
-    return triangular;
+    // Si hay equipos o scorers para actualizar
+    if (updateData.teams || updateData.scorers) {
+      // Actualizar equipos de los jugadores
+      if (updateData.teams) {
+        for (const [team, players] of Object.entries(updateData.teams)) {
+          for (const player of players) {
+            await prisma.playerTriangular.updateMany({
+              where: { triangularId: id, playerId: player.id },
+              data: { team: team as Team },
+            });
+          }
+        }
+      }
+      // Actualizar scorers
+      if (updateData.scorers) {
+        for (const [playerId, scorerData] of Object.entries(updateData.scorers)) {
+          await prisma.playerTriangular.updateMany({
+            where: { triangularId: id, playerId },
+            data: { goals: scorerData.goals, team: scorerData.team },
+          });
+        }
+      }
+    }
+    // Recalcular estadísticas de jugadores
+    await triangularService.recalculateAllPlayerStats();
+    // Devolver el triangular actualizado
+    return await triangularService.getTriangularById(id);
   },
 
   async deleteTriangular(id: string) {
-    return prisma.$transaction(async (tx) => {
-      // Primero eliminar las relaciones
+    await prisma.$transaction(async (tx) => {
       await tx.playerTriangular.deleteMany({
         where: { triangularId: id },
       });
-
       await tx.teamResult.deleteMany({
         where: { triangularId: id },
       });
-
-      // Luego eliminar el triangular
       await tx.triangular.delete({
         where: { id },
       });
-
-      // Recalcular estadísticas de todos los jugadores
-      await triangularService.recalculateAllPlayerStats();
     });
+    // Recalcular estadísticas de todos los jugadores fuera de la transacción
+    await triangularService.recalculateAllPlayerStats();
   },
 };

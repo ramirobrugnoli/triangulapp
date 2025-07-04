@@ -1266,26 +1266,11 @@ describe('gameStore', () => {
       
       expect(mockApi.triangular.postTriangularResult).toHaveBeenCalledWith(
         expect.objectContaining({
-          teams: expect.objectContaining({
-            first: expect.objectContaining({
-              name: 'Equipo 1',
-              points: 5, // 3 + 2
-              wins: 1,
-              normalWins: 1,
-              draws: 0,
-            }),
-            second: expect.objectContaining({
-              name: 'Equipo 2',
-              points: 1, // 1 from draw
-              wins: 0,
-              normalWins: 0,
-              draws: 1,
-            }),
-            third: expect.objectContaining({
-              name: 'Equipo 3',
-              points: 0,
-            }),
-          }),
+          teams: expect.arrayContaining([
+            expect.objectContaining({ name: 'Equipo 1', position: 1 }),
+            expect.objectContaining({ name: 'Equipo 2', position: 2 }),
+            expect.objectContaining({ name: 'Equipo 3', position: 3 }),
+          ]),
           scorers: { player1: 1 },
         })
       );

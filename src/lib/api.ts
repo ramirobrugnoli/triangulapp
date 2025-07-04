@@ -1,5 +1,5 @@
 // lib/api.ts
-import { Player, TriangularHistory, TriangularResult, PlayerTriangularHistory } from "@/types";
+import { Player, TriangularHistory, Team, TriangularResult, PlayerTriangularHistory } from "@/types";
 
 // En desarrollo, Next.js maneja automáticamente las rutas relativas
 const API_BASE = "/api";
@@ -185,6 +185,26 @@ export const triangularService = {
       }
     } catch (error) {
       console.error("Error deleting triangular:", error);
+      throw error;
+    }
+  },
+
+  async updateTriangularTeamsAndScorers(id: string, teams: { [team in Team]: { id: string; name: string }[] }, scorers: { [playerId: string]: { goals: number; team: Team } }): Promise<TriangularHistory> {
+    try {
+      const response = await fetch(`${API_BASE}/triangular/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ teams, scorers }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: "Error desconocido" }));
+        throw new Error(errorData.message || "Error al actualizar equipos y scorers");
+      }
+      return response.json();
+    } catch (error) {
+      console.error("Error updating teams and scorers:", error);
       throw error;
     }
   },

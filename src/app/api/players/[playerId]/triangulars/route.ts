@@ -63,11 +63,14 @@ export async function GET(
         });
       });
       
+      // Obtener el equipo real del jugador en este triangular (de la tabla playerTriangular)
+      const realTeam = participation.team;
       return {
         id: triangular.id,
         date: triangular.date,
         champion: triangular.champion,
         playerTeam: participation.team,
+        realTeam: realTeam,
         position: playerTeam?.position || 0,
         points: participation.points,
         wins: participation.wins,

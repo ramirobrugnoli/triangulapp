@@ -110,16 +110,22 @@ export interface GameState {
 }
 
 // Interfaces para la API y Backend
+export interface TeamResultWithPosition {
+  name: Team;
+  players: string[];
+  points: number;
+  wins: number;
+  normalWins: number;
+  draws: number;
+  position: number;
+}
+
 export interface TriangularResult {
   id?: string;
   date: string;
-  teams: {
-    first: TeamResult;
-    second: TeamResult;
-    third: TeamResult;
-  };
+  teams: TeamResultWithPosition[];
   scorers: {
-    [playerId: string]: number; // Cambiado de number a string para aceptar UUIDs/CUIDs
+    [playerId: string]: number;
   };
 }
 
@@ -149,6 +155,7 @@ export interface TriangularHistory {
     goals: number;
     team: Team;
   }[];
+  teamPlayers: Record<string, { id: string; name: string, team: Team }[]>;
 }
 
 // Interfaces para UI Components

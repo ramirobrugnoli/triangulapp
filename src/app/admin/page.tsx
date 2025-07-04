@@ -6,6 +6,9 @@ import { api } from "@/lib/api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { getColorByTeam } from "@/lib/helpers/helpers";
+import { DndContext, closestCenter, useDroppable, useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
+import { SoccerBallIcon } from '@/components/ui/icons';
 
 interface EditFormData {
   champion: string;
@@ -69,6 +72,22 @@ export default function AdminPage() {
   const [selectedTeamKey, setSelectedTeamKey] = useState<'first' | 'second' | 'third' | null>(null);
   const [showCalculatorInfo, setShowCalculatorInfo] = useState(false);
   const calculatorInfoRef = useRef<HTMLDivElement>(null);
+  const [selectedTriangularId, setSelectedTriangularId] = useState<string | null>(null);
+  const [editTeams, setEditTeams] = useState<{ [team in Team]: { id: string; name: string; goals: number; team: Team }[] }>({
+    'Equipo 1': [], 'Equipo 2': [], 'Equipo 3': []
+  });
+  const [editScorers, setEditScorers] = useState<Array<{ id?: string; name?: string; goals: number; team: Team }>>([]);
+  const [showEditTeamsModal, setShowEditTeamsModal] = useState(false);
+  const [editTeamsTriangular, setEditTeamsTriangular] = useState<TriangularHistory | null>(null);
+  const [isSavingEditTeams, setIsSavingEditTeams] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Paleta de colores hexadecimales para los equipos
+  const teamBgColors = {
+    'Equipo 1': 'bg-[#ffd60a]', // Amarillo
+    'Equipo 2': 'bg-[#ff4d6d]', // Rosa
+    'Equipo 3': 'bg-[#ced4da]', // Negro
+  };
 
   useEffect(() => {
     loadTriangulars();
@@ -114,14 +133,6 @@ export default function AdminPage() {
     }
   };
 
-  const handleEdit = (triangular: TriangularHistory) => {
-    setEditingId(triangular.id);
-    setEditForm({
-      champion: triangular.champion,
-      date: triangular.date.split('T')[0], // Format for date input
-    });
-  };
-
   const handleSaveEdit = async () => {
     if (!editingId) return;
 
@@ -150,7 +161,7 @@ export default function AdminPage() {
 
   const handleConfirmDelete = async () => {
     if (!deleteConfirm) return;
-
+    setIsDeleting(true);
     try {
       await api.triangular.deleteTriangular(deleteConfirm.id);
       toast.success("Triangular eliminado exitosamente");
@@ -159,17 +170,24 @@ export default function AdminPage() {
     } catch (error) {
       toast.error("Error al eliminar triangular");
       console.error("Error deleting triangular:", error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const handleCreateTriangular = async () => {
     try {
+      // Convertir teams a array con posición
+      const teamKeys: Array<'first' | 'second' | 'third'> = ['first', 'second', 'third'];
+      const teamsArray = teamKeys.map((key, idx) => ({
+        ...createForm.teams[key],
+        position: idx + 1,
+      }));
       const triangularData = {
         date: createForm.date,
-        teams: createForm.teams,
+        teams: teamsArray,
         scorers: createForm.scorers
       };
-
       await api.triangular.postTriangularResult(triangularData);
       toast.success("Triangular creado exitosamente");
       setShowCreateModal(false);
@@ -405,6 +423,101 @@ export default function AdminPage() {
     });
   };
 
+  // Handler para seleccionar un triangular y cargar equipos
+  const handleSelectTriangular = (id: string) => {
+    setSelectedTriangularId(id);
+    const triangular = triangulars.find(t => t.id === id);
+    if (triangular) {
+      // Usar teamPlayers para poblar todos los jugadores de cada equipo
+      const teams: { [team in Team]: { id: string; name: string; goals: number; team: Team }[] } = { 'Equipo 1': [], 'Equipo 2': [], 'Equipo 3': [] };
+      (['Equipo 1', 'Equipo 2', 'Equipo 3'] as Team[]).forEach(team => {
+        teams[team] = (triangular.teamPlayers?.[team] || []).map(player => ({
+          id: player.id,
+          name: player.name,
+          goals: (triangular.scorers.find(s => s.name === player.name && s.team === team)?.goals ?? 0),
+          team: team
+        }));
+      });
+      setEditTeams(teams);
+      setEditScorers(triangular.scorers || []);
+    }
+  };
+
+  // Guardar cambios
+  const handleSaveEditColors = async () => {
+    if (!selectedTriangularId) return;
+    setIsSavingEditTeams(true);
+    // Construir objeto scorers actualizado con goles y equipo (formato requerido por updateTriangularTeamsAndScorers)
+    const scorersObj: { [playerId: string]: { goals: number; team: Team } } = {};
+    editScorers.forEach((scorer: {id?: string, name?: string, goals: number, team: Team}) => {
+      if (scorer.id) {
+        scorersObj[scorer.id] = { goals: scorer.goals, team: scorer.team };
+      } else if (scorer.name) {
+        // fallback por si el scorer tiene name en vez de id
+        const player = Object.values(editTeams).flat().find(p => p.name === scorer.name);
+        if (player) scorersObj[player.id] = { goals: scorer.goals, team: scorer.team };
+      }
+    });
+    (['Equipo 1', 'Equipo 2', 'Equipo 3'] as Team[]).forEach(team => {
+      editTeams[team].forEach(player => {
+        if (scorersObj[player.id]) {
+          scorersObj[player.id].team = team;
+        }
+      });
+    });
+    try {
+      await api.triangular.updateTriangularTeamsAndScorers(selectedTriangularId, editTeams, scorersObj);
+      toast.success('Cambios guardados correctamente');
+      loadTriangulars();
+      setShowEditTeamsModal(false);
+    } catch (error) {
+      console.error('Error al guardar los cambios:', error);
+      toast.error('Error al guardar los cambios');
+    } finally {
+      setIsSavingEditTeams(false);
+    }
+  };
+
+  // Handler para abrir el modal de edición de equipos
+  const handleOpenEditTeamsModal = (triangular: TriangularHistory) => {
+    setEditTeamsTriangular(triangular);
+    // Usar teamPlayers para poblar todos los jugadores de cada equipo
+    const teams: { [team in Team]: { id: string; name: string; goals: number; team: Team }[] } = { 'Equipo 1': [], 'Equipo 2': [], 'Equipo 3': [] };
+    (['Equipo 1', 'Equipo 2', 'Equipo 3'] as Team[]).forEach(team => {
+      teams[team] = (triangular.teamPlayers?.[team] || []).map(player => ({
+        id: player.id,
+        name: player.name,
+        goals: (triangular.scorers.find(s => s.name === player.name && s.team === team)?.goals ?? 0),
+        team: team
+      }));
+    });
+    setEditTeams(teams);
+    setEditScorers(triangular.scorers || []);
+    setShowEditTeamsModal(true);
+  };
+
+  // Componente para box de equipo draggable y droppable
+  function DraggableTeamBox({ team, players, color }: { team: Team, players: {id: string, name: string, goals: number, team: Team}[], color: string }) {
+    const { setNodeRef: setDropRef, isOver } = useDroppable({ id: team });
+    const { attributes, listeners, setNodeRef: setDragRef, transform, isDragging } = useDraggable({ id: team });
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      opacity: isDragging ? 0.7 : 1,
+      border: isOver ? '2px solid #333' : undefined,
+      cursor: 'grab',
+    };
+    return (
+      <div ref={node => { setDropRef(node); setDragRef(node); }} style={style} {...attributes} {...listeners} className={`${color} rounded-lg p-4 min-h-[100px]`}>
+        {players.map(player => (
+          <div key={player.id} className="flex items-center gap-2 mb-2">
+            <span className="bg-gray-900 rounded px-2 py-1 text-sm text-white">{player.name}</span>
+            <span className="text-xs text-gray-900">({player.goals})</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
@@ -618,7 +731,10 @@ export default function AdminPage() {
                         ) : (
                           <div className="space-x-2">
                             <button
-                              onClick={() => handleEdit(triangular)}
+                              onClick={() => {
+                                handleSelectTriangular(triangular.id);
+                                handleOpenEditTeamsModal(triangular);
+                              }}
                               className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs transition-colors"
                             >
                               Editar
@@ -989,13 +1105,16 @@ export default function AdminPage() {
             <div className="flex space-x-3">
               <button
                 onClick={handleConfirmDelete}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded text-sm font-medium transition-colors"
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                disabled={isDeleting}
               >
+                {isDeleting && <SoccerBallIcon className="animate-spin" width={20} height={20} />}
                 Eliminar
               </button>
               <button
                 onClick={() => setDeleteConfirm(null)}
                 className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded text-sm font-medium transition-colors"
+                disabled={isDeleting}
               >
                 Cancelar
               </button>
@@ -1003,6 +1122,139 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* Edit Colors Tab */}
+      {selectedTriangularId && (
+        <div className="bg-gray-800 rounded-lg p-6">
+          <h2 className="text-xl font-bold mb-4">Editar Colores de Triangular</h2>
+          <div className="mb-4">
+            <label className="block mb-2">Seleccionar Triangular por Fecha:</label>
+            <select
+              className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white"
+              value={selectedTriangularId || ''}
+              onChange={e => handleSelectTriangular(e.target.value)}
+            >
+              <option value="">-- Selecciona un triangular --</option>
+              {triangulars.map(t => (
+                <option key={t.id} value={t.id}>{formatDate(t.date)}</option>
+              ))}
+            </select>
+          </div>
+          {selectedTriangularId && (
+            <DndContext collisionDetection={closestCenter} onDragEnd={({active, over}) => {
+              if (!over || active.id === over.id) return;
+              setEditTeams(prev => {
+                const newTeams = { ...prev };
+                const fromPlayers = prev[active.id as Team];
+                const toPlayers = prev[over.id as Team];
+                // Actualizar el campo team de cada jugador
+                const updatedFrom = toPlayers.map(p => ({ ...p, team: active.id as Team }));
+                const updatedTo = fromPlayers.map(p => ({ ...p, team: over.id as Team }));
+                newTeams[active.id as Team] = updatedFrom;
+                newTeams[over.id as Team] = updatedTo;
+                return newTeams;
+              });
+            }}>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                {(['Equipo 1', 'Equipo 2', 'Equipo 3'] as Team[]).map(team => {
+                  const totalGoals = editTeams[team].reduce((sum, player) => sum + (player.goals ?? 0), 0);
+                  return (
+                    <div key={team} className={`${teamBgColors[team]} rounded-lg p-4 min-h-[200px] mb-2`}>
+                      <div className="flex justify-between items-center mb-2">
+                        <h3 className="font-bold text-center text-gray-900">{getColorByTeam(team)}</h3>
+                        <span className="text-xs font-bold text-gray-900">{editTeamsTriangular?.teams.find(t => t.name === team)?.points ?? 0} pts</span>
+                      </div>
+                      <div className="text-xs font-bold text-gray-900 mb-2">Goles: {totalGoals}</div>
+                      <DraggableTeamBox
+                        key={team}
+                        team={team}
+                        players={editTeams[team]}
+                        color={teamBgColors[team]}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </DndContext>
+          )}
+          {selectedTriangularId && (
+            <button onClick={handleSaveEditColors} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-medium mt-4">
+              {isSavingEditTeams && (
+                <SoccerBallIcon className="animate-spin" width={20} height={20} />
+              )}
+              Guardar Cambios
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Edit Teams Modal */}
+      {showEditTeamsModal && editTeamsTriangular && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-3xl w-full mx-4 border border-gray-700 max-h-[90vh] overflow-y-auto">
+            <div className="flex flex-col gap-2 mb-6">
+              <span className="text-sm text-gray-300">Fecha: {formatDate(editTeamsTriangular.date)}</span>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold text-white">Editar Equipos y Colores</h3>
+                <button
+                  onClick={() => setShowEditTeamsModal(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <DndContext collisionDetection={closestCenter} onDragEnd={({active, over}) => {
+              if (!over || active.id === over.id) return;
+              setEditTeams(prev => {
+                const newTeams = { ...prev };
+                const fromPlayers = prev[active.id as Team];
+                const toPlayers = prev[over.id as Team];
+                // Actualizar el campo team de cada jugador
+                const updatedFrom = toPlayers.map(p => ({ ...p, team: active.id as Team }));
+                const updatedTo = fromPlayers.map(p => ({ ...p, team: over.id as Team }));
+                newTeams[active.id as Team] = updatedFrom;
+                newTeams[over.id as Team] = updatedTo;
+                return newTeams;
+              });
+            }}>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                {(['Equipo 1', 'Equipo 2', 'Equipo 3'] as Team[]).map(team => {
+                  const totalGoals = editTeams[team].reduce((sum, player) => sum + (player.goals ?? 0), 0);
+                  return (
+                    <div key={team} className={`${teamBgColors[team]} rounded-lg p-4 min-h-[200px] mb-2`}>
+                      <div className="flex justify-between items-center mb-2">
+                        <h3 className="font-bold text-center text-gray-900">{getColorByTeam(team)}</h3>
+                        <span className="text-xs font-bold text-gray-900">{editTeamsTriangular?.teams.find(t => t.name === team)?.points ?? 0} pts</span>
+                      </div>
+                      <div className="text-xs font-bold text-gray-900 mb-2">Goles: {totalGoals}</div>
+                      <DraggableTeamBox
+                        key={team}
+                        team={team}
+                        players={editTeams[team]}
+                        color={teamBgColors[team]}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </DndContext>
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={handleSaveEditColors}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-medium flex items-center gap-2"
+              >
+                {isSavingEditTeams && (
+                  <SoccerBallIcon className="animate-spin" width={20} height={20} />
+                )}
+                Guardar Cambios
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-} 
+}

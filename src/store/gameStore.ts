@@ -7,7 +7,6 @@ import {
   Team,
   TeamBuilderState,
   TeamScore,
-  TriangularResult,
   MatchRecord,
 } from "@/types";
 import { api } from "@/lib/api";
@@ -877,60 +876,60 @@ export const useGameStore = create<GameStore>()(
         const state = get();
 
         // Obtener los datos de los equipos
-        const teamsData = [
+        type TeamWithPosition = {
+          name: Team;
+          players: string[];
+          points: number;
+          wins: number;
+          normalWins: number;
+          draws: number;
+          position: number;
+        };
+        const teamsData: TeamWithPosition[] = [
           {
-            index: 0,
-            name: "Equipo 1",
-            score: state.dailyScores[0].points,
-            members: state.activeTeams.teamA.members,
-            stats: state.dailyScores[0],
+            name: "Equipo 1" as Team,
+            players: state.activeTeams.teamA.members.map((m) => m.id),
+            points: state.dailyScores[0].points,
+            wins: state.dailyScores[0].wins,
+            normalWins: state.dailyScores[0].normalWins,
+            draws: state.dailyScores[0].draws,
+            position: 0,
           },
           {
-            index: 1,
-            name: "Equipo 2",
-            score: state.dailyScores[1].points,
-            members: state.activeTeams.teamB.members,
-            stats: state.dailyScores[1],
+            name: "Equipo 2" as Team,
+            players: state.activeTeams.teamB.members.map((m) => m.id),
+            points: state.dailyScores[1].points,
+            wins: state.dailyScores[1].wins,
+            normalWins: state.dailyScores[1].normalWins,
+            draws: state.dailyScores[1].draws,
+            position: 0,
           },
           {
-            index: 2,
-            name: "Equipo 3",
-            score: state.dailyScores[2].points,
-            members: state.activeTeams.waiting.members,
-            stats: state.dailyScores[2],
+            name: "Equipo 3" as Team,
+            players: state.activeTeams.waiting.members.map((m) => m.id),
+            points: state.dailyScores[2].points,
+            wins: state.dailyScores[2].wins,
+            normalWins: state.dailyScores[2].normalWins,
+            draws: state.dailyScores[2].draws,
+            position: 0,
           },
-        ].sort((a, b) => b.score - a.score);
+        ];
+
+        // Calcular posición por puntos (1=primero, 2=segundo, 3=tercero)
+        const sorted = [...teamsData].sort((a, b) => b.points - a.points);
+        sorted.forEach((team, idx) => {
+          team.position = idx + 1;
+        });
+        // Asignar la posición a los equipos originales
+        teamsData.forEach(team => {
+          const found = sorted.find(t => t.name === team.name);
+          team.position = found ? found.position : 0;
+        });
 
         // Crear el resultado del triangular
-        const result: TriangularResult = {
+        const result = {
           date: new Date().toISOString(),
-          teams: {
-            first: {
-              name: teamsData[0].name as Team,
-              players: teamsData[0].members.map((m) => m.id),
-              points: teamsData[0].score,
-              wins: teamsData[0].stats.wins,
-              normalWins: teamsData[0].stats.normalWins,
-              draws: teamsData[0].stats.draws,
-            },
-            second: {
-              name: teamsData[1].name as Team,
-              players: teamsData[1].members.map((m) => m.id),
-              points: teamsData[1].score,
-              wins: teamsData[1].stats.wins,
-              normalWins: teamsData[1].stats.normalWins,
-              draws: teamsData[1].stats.draws,
-            },
-            third: {
-              name: teamsData[2].name as Team,
-              players: teamsData[2].members.map((m) => m.id),
-              points: teamsData[2].score,
-              wins: teamsData[2].stats.wins,
-              normalWins: teamsData[2].stats.normalWins,
-              draws: teamsData[2].stats.draws,
-            },
-          },
-          // Mantener los IDs como strings, sin convertir a Number
+          teams: teamsData, // ahora es un array con campo position
           scorers: state.currentGoals,
         };
 
