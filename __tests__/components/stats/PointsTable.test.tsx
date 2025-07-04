@@ -1,7 +1,15 @@
-import { render } from '@testing-library/react';
+import { render, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { PointsTable } from '@/components/stats/PointsTable';
 import { Player } from '@/types';
+
+// Mock next/navigation
+const mockPush = jest.fn();
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
+}));
 
 const mockPlayers: Player[] = [
   {
@@ -115,5 +123,12 @@ describe('PointsTable Component', () => {
     
     const playerRows = container.querySelectorAll('tbody tr');
     expect(playerRows).toHaveLength(0);
+  });
+
+  it('should navigate to player stats page on player name click', () => {
+    const { getAllByText } = render(<PointsTable players={mockPlayers} />);
+    const playerButtons = getAllByText('Juan');
+    fireEvent.click(playerButtons[0]);
+    expect(mockPush).toHaveBeenCalledWith('/estadisticas/individuales/1');
   });
 }); 

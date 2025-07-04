@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useStatsStore } from "@/store/statsStore";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { PlayerStatsCharts } from "@/components/stats/PlayerStatsCharts";
 import { PlayerSelector as StatsPlayerSelector } from "@/components/stats/StatsPlayerSelector";
 import { PlayerTriangularHistory } from "@/components/stats/PlayerTriangularHistory";
@@ -11,6 +11,8 @@ import { api } from "@/lib/api";
 
 export default function EstadisticasIndividualesPage() {
   const router = useRouter();
+  const params = useParams();
+  const playerIdFromUrl = Array.isArray(params.playerId) ? params.playerId[0] : params.playerId;
   const { players, loading, error, fetchStats } = useStatsStore();
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [playersWithStats, setPlayersWithStats] = useState<Player[]>([]);
@@ -48,12 +50,21 @@ export default function EstadisticasIndividualesPage() {
   }, [players]);
 
   useEffect(() => {
-    if (playersWithStats.length > 0 && !selectedPlayer && mounted) {
-      // Seleccionar automáticamente un jugador al azar solo después de montar
-      const randomIndex = Math.floor(Math.random() * playersWithStats.length);
-      setSelectedPlayer(playersWithStats[randomIndex]);
+    if (playersWithStats.length > 0 && mounted) {
+      if (playerIdFromUrl) {
+        const found = playersWithStats.find(p => p.id === playerIdFromUrl);
+        if (found) setSelectedPlayer(found);
+        else setSelectedPlayer(playersWithStats[0]);
+      } else if (!selectedPlayer) {
+        setSelectedPlayer(playersWithStats[0]);
+      }
     }
-  }, [playersWithStats, selectedPlayer, mounted]);
+  }, [playersWithStats, playerIdFromUrl, mounted]);
+
+  const handlePlayerSelect = (player: Player) => {
+    setSelectedPlayer(player);
+    router.replace(`/estadisticas/individuales/${player.id}`);
+  };
 
   if (loading) {
     return (
@@ -85,7 +96,7 @@ export default function EstadisticasIndividualesPage() {
       <StatsPlayerSelector 
         players={playersWithStats}
         selectedPlayer={selectedPlayer}
-        onPlayerSelect={setSelectedPlayer}
+        onPlayerSelect={handlePlayerSelect}
       />
 
       {/* Gráficos de estadísticas del jugador seleccionado */}

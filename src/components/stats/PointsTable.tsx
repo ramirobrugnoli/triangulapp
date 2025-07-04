@@ -1,11 +1,13 @@
 import { Player } from "@/types";
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 
 interface PointsTableProps {
   players: Player[];
 }
 
 export function PointsTable({ players }: PointsTableProps) {
+  const router = useRouter();
   // Usamos useMemo para ordenar los jugadores solo cuando cambian los datos
   const sortedByPoints = useMemo(() => {
     return [...players].sort((a, b) => {
@@ -60,7 +62,12 @@ export function PointsTable({ players }: PointsTableProps) {
               {sortedByPoints.map((player) => (
                 <tr key={player.id} className="hover:bg-gray-800">
                   <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-100">
-                    {player.name}
+                    <button
+                      className="text-green-400 hover:underline focus:outline-none"
+                      onClick={() => router.push(`/estadisticas/individuales/${player.id}`)}
+                    >
+                      {player.name}
+                    </button>
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
                     {player.stats.matches}
@@ -102,15 +109,18 @@ export function PointsTable({ players }: PointsTableProps) {
               {sortedByGoals.map((player) => (
                 <tr key={player.id} className="hover:bg-gray-800">
                   <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-100">
-                    {player.name}
+                    <button
+                      className="text-green-400 hover:underline focus:outline-none"
+                      onClick={() => router.push(`/estadisticas/individuales/${player.id}`)}
+                    >
+                      {player.name}
+                    </button>
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
                     {player.stats.goals}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {(player.stats.goals / (player.stats.matches || 1)).toFixed(
-                      2
-                    )}
+                    {(player.stats.goals / (player.stats.matches || 1)).toFixed(2)}
                   </td>
                 </tr>
               ))}

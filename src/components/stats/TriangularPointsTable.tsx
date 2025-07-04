@@ -1,5 +1,6 @@
 import { Player, TriangularHistory } from "@/types";
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 
 type PlayerTriangularPoints = {
   id: string;
@@ -20,6 +21,7 @@ export function TriangularPointsTable({
   players,
   triangularHistory,
 }: TriangularPointsTableProps) {
+  const router = useRouter();
   // Usamos useMemo para calcular los puntos solo cuando cambian los datos de entrada
   const playerPoints = useMemo(() => {
     // Mapeamos jugadores a su estructura de puntos
@@ -141,7 +143,12 @@ export function TriangularPointsTable({
                 playerPoints.map((player) => (
                   <tr key={player.id} className="hover:bg-gray-800">
                     <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-100">
-                      {player.name}
+                      <button
+                        className="text-green-400 hover:underline focus:outline-none"
+                        onClick={() => router.push(`/estadisticas/individuales/${player.id}`)}
+                      >
+                        {player.name}
+                      </button>
                     </td>
                     <td className="px-3 py-4 whitespace-nowrap text-sm text-center text-gray-300">
                       {player.triangularWins}
