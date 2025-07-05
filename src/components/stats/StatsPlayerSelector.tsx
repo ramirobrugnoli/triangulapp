@@ -3,14 +3,16 @@
 import { Player } from "@/types";
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 
 interface StatsPlayerSelectorProps {
   players: Player[];
   selectedPlayer: Player | null;
   onPlayerSelect: (player: Player) => void;
+  loading?: boolean;
 }
 
-export function PlayerSelector({ players, selectedPlayer, onPlayerSelect }: StatsPlayerSelectorProps) {
+export function PlayerSelector({ players, selectedPlayer, onPlayerSelect, loading }: StatsPlayerSelectorProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -25,6 +27,10 @@ export function PlayerSelector({ players, selectedPlayer, onPlayerSelect }: Stat
     onPlayerSelect(player);
     setIsDrawerOpen(false);
   };
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
 
   if (players.length === 0) {
     return (
