@@ -265,9 +265,9 @@ export function TeamsBuilder() {
       const playerIds = selectedPlayers.map(player => player.id);
       const playerStats = await api.players.getPlayerStatsByIds(playerIds);
 
-      // Usar el servicio centralizado para calcular ratings
-      const ratings = PlayerStatsService.calculatePlayersRatings(playerStats);
-      setPlayerRatings(ratings);
+      // Usar el servicio centralizado para calcular ratings V2
+      const ratingsV2 = PlayerStatsService.calculatePlayersRatingsV2(playerStats);
+      setPlayerRatings(ratingsV2);
     } catch (error) {
       console.error("Error al cargar ratings:", error);
     }
@@ -476,10 +476,10 @@ export function TeamsBuilder() {
       const playerIds = allPlayers.map(player => player.id);
       const playerStats = await api.players.getPlayerStatsByIds(playerIds);
 
-      // Calcular rating para cada jugador usando el servicio centralizado
+      // Calcular rating V2 para cada jugador usando el servicio centralizado
       const playersWithRating: (Player & { rating: number })[] = playerStats.map(player => ({
         ...player,
-        rating: PlayerStatsService.calculatePlayerRating(player.stats)
+        rating: PlayerStatsService.calculatePlayerRatingV2(player.stats)
       }));
 
       // Ordenar jugadores por rating (de mayor a menor)

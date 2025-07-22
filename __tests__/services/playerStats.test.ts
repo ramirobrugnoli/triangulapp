@@ -99,6 +99,84 @@ describe('PlayerStatsService', () => {
     });
   });
 
+  describe('calculatePlayerRatingV2', () => {
+    it('should calculate a valid rating V2 for a player', () => {
+      const stats: PlayerStats = {
+        goals: 10,
+        wins: 7,
+        draws: 2,
+        losses: 1,
+        matches: 10,
+        points: 23,
+        winPercentage: 70,
+        triangularsPlayed: 5,
+        triangularWins: 3,
+        triangularSeconds: 1,
+        triangularThirds: 1,
+        triangularPoints: 12,
+        triangularWinPercentage: 60,
+      };
+
+      const ratingV2 = PlayerStatsService.calculatePlayerRatingV2(stats);
+      expect(ratingV2).toBeGreaterThan(0);
+      expect(typeof ratingV2).toBe('number');
+      // (60 * 0.6) + (70 * 0.4) = 36 + 28 = 64
+      expect(ratingV2).toBe(64);
+    });
+
+    it('should return 0 for player with no stats', () => {
+      const stats: PlayerStats = {
+        goals: 0,
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        matches: 0,
+        points: 0,
+        winPercentage: 0,
+        triangularsPlayed: 0,
+        triangularWins: 0,
+        triangularSeconds: 0,
+        triangularThirds: 0,
+        triangularPoints: 0,
+        triangularWinPercentage: 0,
+      };
+
+      const ratingV2 = PlayerStatsService.calculatePlayerRatingV2(stats);
+      expect(ratingV2).toBe(0);
+    });
+  });
+
+  describe('calculateRatingV2Breakdown', () => {
+    it('should provide detailed rating V2 breakdown', () => {
+      const stats: PlayerStats = {
+        goals: 8,
+        wins: 6,
+        draws: 2,
+        losses: 2,
+        matches: 10,
+        points: 20,
+        winPercentage: 60,
+        triangularsPlayed: 4,
+        triangularWins: 2,
+        triangularSeconds: 1,
+        triangularThirds: 1,
+        triangularPoints: 9,
+        triangularWinPercentage: 50,
+      };
+
+      const breakdown = PlayerStatsService.calculateRatingV2Breakdown(stats);
+
+      expect(breakdown).toHaveProperty('winPercentageComponent');
+      expect(breakdown).toHaveProperty('triangularWinPercentageComponent');
+      expect(breakdown).toHaveProperty('totalRatingV2');
+      expect(breakdown.totalRatingV2).toBeGreaterThan(0);
+      // (50 * 0.6) + (60 * 0.4) = 30 + 24 = 54
+      expect(breakdown.totalRatingV2).toBe(54);
+      expect(breakdown.winPercentageComponent).toBe(24);
+      expect(breakdown.triangularWinPercentageComponent).toBe(30);
+    });
+  });
+
   describe('calculatePerformanceData', () => {
     it('should calculate performance percentages correctly', () => {
       const stats: PlayerStats = {
@@ -273,6 +351,62 @@ describe('PlayerStatsService', () => {
       expect(ratings).toHaveProperty('2');
       expect(typeof ratings['1']).toBe('number');
       expect(typeof ratings['2']).toBe('number');
+    });
+  });
+
+  describe('calculatePlayersRatingsV2', () => {
+    it('should calculate ratings V2 for multiple players', () => {
+      const players: Player[] = [
+        {
+          id: '1',
+          name: 'Player 1',
+          stats: {
+            matches: 10,
+            goals: 8,
+            wins: 7,
+            draws: 2,
+            losses: 1,
+            points: 23,
+            winPercentage: 70,
+            triangularsPlayed: 4,
+            triangularWins: 3,
+            triangularSeconds: 1,
+            triangularThirds: 0,
+            triangularPoints: 12,
+            triangularWinPercentage: 75,
+          },
+        },
+        {
+          id: '2',
+          name: 'Player 2',
+          stats: {
+            matches: 8,
+            goals: 5,
+            wins: 4,
+            draws: 2,
+            losses: 2,
+            points: 14,
+            winPercentage: 50,
+            triangularsPlayed: 3,
+            triangularWins: 1,
+            triangularSeconds: 1,
+            triangularThirds: 1,
+            triangularPoints: 6,
+            triangularWinPercentage: 33.33,
+          },
+        },
+      ];
+
+      const ratingsV2 = PlayerStatsService.calculatePlayersRatingsV2(players);
+
+      expect(ratingsV2).toHaveProperty('1');
+      expect(ratingsV2).toHaveProperty('2');
+      expect(typeof ratingsV2['1']).toBe('number');
+      expect(typeof ratingsV2['2']).toBe('number');
+      // Player 1: (75 * 0.6) + (70 * 0.4) = 45 + 28 = 73
+      expect(ratingsV2['1']).toBe(73);
+      // Player 2: (33.33 * 0.6) + (50 * 0.4) = 20 + 20 = 40
+      expect(ratingsV2['2']).toBe(40);
     });
   });
 

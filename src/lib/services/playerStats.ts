@@ -55,6 +55,12 @@ export interface RatingBreakdown {
   totalRating: number;
 }
 
+export interface RatingV2Breakdown {
+  winPercentageComponent: number;
+  triangularWinPercentageComponent: number;
+  totalRatingV2: number;
+}
+
 export interface TriangularAverages {
   pointsPerTriangular: number;
   winsPerTriangular: number;
@@ -104,6 +110,36 @@ export class PlayerStatsService {
       winPercentageComponent,
       goalsPerMatchComponent,
       totalRating: Math.round(totalRating * 100) / 100
+    };
+  }
+
+  /**
+   * Calcula el rating V2 de un jugador usando la nueva fórmula simplificada
+   * Fórmula: (% Triangulares Ganados × 0.6) + (% Victorias × 0.4)
+   */
+  static calculatePlayerRatingV2(stats: PlayerStats): number {
+    const winPercentage = stats.winPercentage || 0;
+    const triangularWinPercentage = stats.triangularWinPercentage || 0;
+
+    const ratingV2 = (triangularWinPercentage * 0.6) + (winPercentage * 0.4);
+    return Math.round(ratingV2 * 100) / 100;
+  }
+
+  /**
+   * Calcula el desglose detallado del rating V2
+   */
+  static calculateRatingV2Breakdown(stats: PlayerStats): RatingV2Breakdown {
+    const winPercentage = stats.winPercentage || 0;
+    const triangularWinPercentage = stats.triangularWinPercentage || 0;
+
+    const triangularWinPercentageComponent = Math.round(triangularWinPercentage * 0.6 * 100) / 100;
+    const winPercentageComponent = Math.round(winPercentage * 0.4 * 100) / 100;
+    const totalRatingV2 = triangularWinPercentageComponent + winPercentageComponent;
+
+    return {
+      winPercentageComponent,
+      triangularWinPercentageComponent,
+      totalRatingV2: Math.round(totalRatingV2 * 100) / 100
     };
   }
 
@@ -171,9 +207,22 @@ export class PlayerStatsService {
   }
 
   /**
+   * Calcula ratings V2 para múltiples jugadores
+   */
+  static calculatePlayersRatingsV2(players: Player[]): { [playerId: string]: number } {
+    const ratingsV2: { [playerId: string]: number } = {};
+
+    players.forEach(player => {
+      ratingsV2[player.id] = this.calculatePlayerRatingV2(player.stats);
+    });
+
+    return ratingsV2;
+  }
+
+  /**
    * Ordena jugadores por una métrica específica
    */
-  static sortPlayersByMetric(players: Player[], metric: 'goals' | 'wins' | 'points' | 'rating'): Player[] {
+  static sortPlayersByMetric(players: Player[], metric: 'goals' | 'wins' | 'points' | 'rating' | 'ratingV2'): Player[] {
     return [...players].sort((a, b) => {
       switch (metric) {
         case 'goals':
@@ -186,6 +235,10 @@ export class PlayerStatsService {
           const ratingA = this.calculatePlayerRating(a.stats);
           const ratingB = this.calculatePlayerRating(b.stats);
           return ratingB - ratingA;
+        case 'ratingV2':
+          const ratingV2A = this.calculatePlayerRatingV2(a.stats);
+          const ratingV2B = this.calculatePlayerRatingV2(b.stats);
+          return ratingV2B - ratingV2A;
         default:
           return 0;
       }
@@ -254,26 +307,6 @@ export class PlayerStatsService {
     player: PrismaPlayer,
     triangularStats: TriangularStatsResult
   ): PlayerStats {
-    console.log({
-      matches: triangularStats.matches,
-      goals: player.goals,
-      wins: player.wins,
-      draws: player.draws,
-      losses: triangularStats.matches - triangularStats.matchesWon - triangularStats.matchesDraw,
-      points: player.wins * 3 + player.draws,
-      winPercentage: triangularStats.matches > 0
-        ? Math.round((player.wins / triangularStats.matches) * 100)
-        : 0,
-      triangularsPlayed: triangularStats.triangularsPlayed,
-      triangularWins: triangularStats.triangularWins,
-      triangularSeconds: triangularStats.triangularSeconds,
-      triangularThirds: triangularStats.triangularThirds,
-      triangularPoints: triangularStats.triangularPoints,
-      triangularWinPercentage: triangularStats.triangularsPlayed > 0
-        ? Math.round((triangularStats.triangularWins / triangularStats.triangularsPlayed) * 100)
-        : 0,
-    })
-
     return {
       matches: triangularStats.matches,
       goals: player.goals,
