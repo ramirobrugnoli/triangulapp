@@ -18,12 +18,25 @@ model Player {
   triangulars PlayerTriangular[]
 }
 
+model Season {
+  id               String      @id @default(cuid())
+  name             String
+  initSeasonDate   DateTime
+  finishSeasonDate DateTime?
+  createdAt        DateTime    @default(now())
+  triangulars      Triangular[]
+}
+
 model Triangular {
   id        String    @id @default(cuid())
   date      DateTime  @default(now())
+  seasonId  String
+  season    Season    @relation(fields: [seasonId], references: [id])
   players   PlayerTriangular[]
   teams     TeamResult[]
   champion  String    // Nombre del equipo campeón ("Equipo 1", "Equipo 2", "Equipo 3")
+  
+  @@index([seasonId])
 }
 
 model PlayerTriangular {

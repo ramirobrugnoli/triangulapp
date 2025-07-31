@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useRef } from "react";
 import { TriangularHistory, Team } from "@/types";
-import { api } from "@/lib/api";
+import { api, Season } from "@/lib/api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { getColorByTeam } from "@/lib/helpers/helpers";
 import { DndContext, closestCenter, useDroppable, useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { SoccerBallIcon } from '@/components/ui/icons';
+import { useSeasonStore } from "@/store/seasonStore";
 
 interface EditFormData {
   champion: string;
@@ -76,11 +77,33 @@ export default function AdminPage() {
   const [editTeams, setEditTeams] = useState<{ [team in Team]: { id: string; name: string; goals: number; team: Team }[] }>({
     'Equipo 1': [], 'Equipo 2': [], 'Equipo 3': []
   });
+
+  // Season editing states
+  const [editingSeasonId, setEditingSeasonId] = useState<string | null>(null);
+  const [editingSeasonName, setEditingSeasonName] = useState<string>("");
   const [editScorers, setEditScorers] = useState<Array<{ id?: string; name?: string; goals: number; team: Team }>>([]);
   const [showEditTeamsModal, setShowEditTeamsModal] = useState(false);
   const [editTeamsTriangular, setEditTeamsTriangular] = useState<TriangularHistory | null>(null);
   const [isSavingEditTeams, setIsSavingEditTeams] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Season management state
+  const [showCreateSeasonModal, setShowCreateSeasonModal] = useState(false);
+  const [newSeasonName, setNewSeasonName] = useState("");
+  const [isCreatingSeason, setIsCreatingSeason] = useState(false);
+  const [showMoveTriangularModal, setShowMoveTriangularModal] = useState(false);
+  const [triangularToMove, setTriangularToMove] = useState<string | null>(null);
+  const [targetSeasonId, setTargetSeasonId] = useState<string>("");
+
+  // Season store
+  const { 
+    seasons, 
+    fetchSeasons, 
+    createSeason, 
+    moveTriangularToSeason,
+    updateSeasonName,
+    loading: seasonsLoading 
+  } = useSeasonStore();
 
   // Paleta de colores hexadecimales para los equipos
   const teamBgColors = {
@@ -92,7 +115,8 @@ export default function AdminPage() {
   useEffect(() => {
     loadTriangulars();
     loadPlayers();
-  }, []);
+    fetchSeasons();
+  }, [fetchSeasons]);
 
   // Cerrar popup al hacer click fuera
   useEffect(() => {
@@ -423,6 +447,89 @@ export default function AdminPage() {
     });
   };
 
+  // Season management handlers
+  const handleCreateSeason = async () => {
+    if (!newSeasonName.trim()) {
+      toast.error("El nombre de la temporada es requerido");
+      return;
+    }
+
+    setIsCreatingSeason(true);
+    try {
+      await createSeason(newSeasonName.trim());
+      toast.success("Temporada creada exitosamente");
+      setShowCreateSeasonModal(false);
+      setNewSeasonName("");
+      loadTriangulars(); // Reload triangulars to reflect any changes
+    } catch (error) {
+      toast.error("Error al crear la temporada");
+      console.error("Error creating season:", error);
+    } finally {
+      setIsCreatingSeason(false);
+    }
+  };
+
+  const handleMoveTriangular = (triangularId: string) => {
+    setTriangularToMove(triangularId);
+    setTargetSeasonId("");
+    setShowMoveTriangularModal(true);
+  };
+
+  const handleUpdateSeasonName = async () => {
+    if (!editingSeasonId || !editingSeasonName.trim()) {
+      toast.error("El nombre de la temporada no puede estar vacío");
+      return;
+    }
+
+    try {
+      await updateSeasonName(editingSeasonId, editingSeasonName.trim());
+      toast.success("Nombre de temporada actualizado exitosamente");
+      setEditingSeasonId(null);
+      setEditingSeasonName("");
+    } catch (error) {
+      toast.error("Error al actualizar el nombre de la temporada");
+      console.error("Error updating season name:", error);
+    }
+  };
+
+  const handleCancelEditSeason = () => {
+    setEditingSeasonId(null);
+    setEditingSeasonName("");
+  };
+
+  const handleConfirmMoveTriangular = async () => {
+    if (!triangularToMove || !targetSeasonId) {
+      toast.error("Selecciona una temporada de destino");
+      return;
+    }
+
+    try {
+      await moveTriangularToSeason(triangularToMove, targetSeasonId);
+      toast.success("Triangular movido exitosamente");
+      setShowMoveTriangularModal(false);
+      setTriangularToMove(null);
+      setTargetSeasonId("");
+      loadTriangulars(); // Reload triangulars to reflect changes
+    } catch (error) {
+      toast.error("Error al mover triangular");
+      console.error("Error moving triangular:", error);
+    }
+  };
+
+  const formatSeasonDate = (season: Season) => {
+    const startDate = new Date(season.initSeasonDate).toLocaleDateString('es-ES', {
+      month: 'short',
+      year: 'numeric'
+    });
+    const endDate = season.finishSeasonDate 
+      ? new Date(season.finishSeasonDate).toLocaleDateString('es-ES', {
+          month: 'short',
+          year: 'numeric'
+        })
+      : 'Actual';
+    return `${startDate} - ${endDate}`;
+  };
+
   // Handler para seleccionar un triangular y cargar equipos
   const handleSelectTriangular = (id: string) => {
     setSelectedTriangularId(id);
@@ -602,6 +709,121 @@ export default function AdminPage() {
           </div>
         </div>
 
+        {/* Season Management */}
+        <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden mb-8">
+          <div className="px-6 py-4 border-b border-gray-700 flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-white">Gestión de Temporadas</h2>
+            <button
+              onClick={() => setShowCreateSeasonModal(true)}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded font-medium transition-colors flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Nueva Temporada
+            </button>
+          </div>
+
+          <div className="p-6">
+            {seasonsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+              </div>
+            ) : seasons.length === 0 ? (
+              <div className="text-center py-8">
+                <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <p className="text-gray-400">No hay temporadas creadas</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {seasons.map((season) => (
+                  <div
+                    key={season.id}
+                    className={`bg-gray-700 rounded-lg p-4 border ${
+                      !season.finishSeasonDate ? 'border-green-500' : 'border-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      {editingSeasonId === season.id ? (
+                        <div className="flex-1 flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={editingSeasonName}
+                            onChange={(e) => setEditingSeasonName(e.target.value)}
+                            className="flex-1 bg-gray-600 text-white px-2 py-1 rounded border border-gray-500 focus:border-blue-500 focus:outline-none"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleUpdateSeasonName();
+                              } else if (e.key === 'Escape') {
+                                handleCancelEditSeason();
+                              }
+                            }}
+                          />
+                          <button
+                            onClick={handleUpdateSeasonName}
+                            className="text-green-400 hover:text-green-300 p-1"
+                            title="Guardar"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={handleCancelEditSeason}
+                            className="text-red-400 hover:text-red-300 p-1"
+                            title="Cancelar"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ) : (
+                        <h3 className="text-lg font-semibold text-white">{season.name}</h3>
+                      )}
+                      {!season.finishSeasonDate && (
+                        <span className="text-xs bg-green-600 text-green-100 px-2 py-1 rounded-full">
+                          Activa
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-400 mb-3">
+                      {formatSeasonDate(season)}
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-300">
+                        {season.triangularCount || 0} triangulares
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {editingSeasonId !== season.id && (
+                          <button
+                            onClick={() => {
+                              setEditingSeasonId(season.id);
+                              setEditingSeasonName(season.name);
+                            }}
+                            className="text-blue-400 hover:text-blue-300 p-1 rounded transition-colors"
+                            title="Editar nombre"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        )}
+                        <div className={`w-3 h-3 rounded-full ${
+                          !season.finishSeasonDate ? 'bg-green-500' : 'bg-gray-500'
+                        }`}></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Triangulars List */}
         <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-700 flex justify-between items-center">
@@ -729,19 +951,26 @@ export default function AdminPage() {
                             </button>
                           </div>
                         ) : (
-                          <div className="space-x-2">
+                          <div className="space-x-1">
                             <button
                               onClick={() => {
                                 handleSelectTriangular(triangular.id);
                                 handleOpenEditTeamsModal(triangular);
                               }}
-                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs transition-colors"
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs transition-colors"
                             >
                               Editar
                             </button>
                             <button
+                              onClick={() => handleMoveTriangular(triangular.id)}
+                              className="bg-purple-600 hover:bg-purple-700 text-white px-2 py-1 rounded text-xs transition-colors"
+                              title="Mover a otra temporada"
+                            >
+                              Mover
+                            </button>
+                            <button
                               onClick={() => handleDeleteClick(triangular)}
-                              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs transition-colors"
+                              className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs transition-colors"
                             >
                               Eliminar
                             </button>
@@ -756,6 +985,143 @@ export default function AdminPage() {
           )}
         </div>
       </div>
+
+      {/* Create Season Modal */}
+      {showCreateSeasonModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-700">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-white">Crear Nueva Temporada</h3>
+              <button
+                onClick={() => {
+                  setShowCreateSeasonModal(false);
+                  setNewSeasonName("");
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Nombre de la Temporada
+                </label>
+                <input
+                  type="text"
+                  value={newSeasonName}
+                  onChange={(e) => setNewSeasonName(e.target.value)}
+                  className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white w-full focus:outline-none focus:border-purple-500"
+                  placeholder="ej. Season 2, Temporada Verano 2024"
+                  autoFocus
+                />
+              </div>
+
+              <div className="bg-blue-900 bg-opacity-30 border border-blue-700 rounded-lg p-3">
+                <p className="text-blue-300 text-sm">
+                  <strong>Nota:</strong> Al crear una nueva temporada, la temporada actual se cerrará automáticamente 
+                  y todos los nuevos triangulares se asignarán a esta nueva temporada.
+                </p>
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  onClick={handleCreateSeason}
+                  disabled={isCreatingSeason || !newSeasonName.trim()}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-2 px-4 rounded font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                  {isCreatingSeason && <SoccerBallIcon className="animate-spin" width={20} height={20} />}
+                  Crear Temporada
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCreateSeasonModal(false);
+                    setNewSeasonName("");
+                  }}
+                  disabled={isCreatingSeason}
+                  className="flex-1 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-700 text-white py-2 px-4 rounded font-medium transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Move Triangular Modal */}
+      {showMoveTriangularModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-700">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-white">Mover Triangular</h3>
+              <button
+                onClick={() => {
+                  setShowMoveTriangularModal(false);
+                  setTriangularToMove(null);
+                  setTargetSeasonId("");
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Seleccionar Temporada de Destino
+                </label>
+                <select
+                  value={targetSeasonId}
+                  onChange={(e) => setTargetSeasonId(e.target.value)}
+                  className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white w-full focus:outline-none focus:border-purple-500"
+                >
+                  <option value="">-- Seleccionar temporada --</option>
+                  {seasons.map((season) => (
+                    <option key={season.id} value={season.id}>
+                      {season.name} ({formatSeasonDate(season)})
+                      {!season.finishSeasonDate && " - Activa"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="bg-yellow-900 bg-opacity-30 border border-yellow-700 rounded-lg p-3">
+                <p className="text-yellow-300 text-sm">
+                  <strong>Advertencia:</strong> Esta acción moverá el triangular a la temporada seleccionada. 
+                  Esto puede afectar las estadísticas de los jugadores.
+                </p>
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  onClick={handleConfirmMoveTriangular}
+                  disabled={!targetSeasonId}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-2 px-4 rounded font-medium transition-colors"
+                >
+                  Mover Triangular
+                </button>
+                <button
+                  onClick={() => {
+                    setShowMoveTriangularModal(false);
+                    setTriangularToMove(null);
+                    setTargetSeasonId("");
+                  }}
+                  className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded font-medium transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Triangular Modal */}
       {showCreateModal && (

@@ -96,10 +96,26 @@ export const triangularService = {
     return prisma.$transaction(
       async (tx) => {
         try {
-          // 1. Crear el triangular y sus resultados de equipo en una sola operación
+          // 1. Get the active season (the season without finishSeasonDate)
+          const activeSeason = await tx.season.findFirst({
+            where: {
+              finishSeasonDate: null
+            },
+            select: {
+              id: true
+            }
+          });
+
+          if (!activeSeason) {
+            throw new Error("No active season found. Please create a season first.");
+          }
+
+          // 2. Crear el triangular y sus resultados de equipo en una sola operación
           const triangular = await tx.triangular.create({
             data: {
               champion: result.teams.find(t => t.position === 1)?.name ?? result.teams[0].name,
+              date: result.date ? new Date(result.date) : new Date(),
+              seasonId: activeSeason.id,
               teams: {
                 create: result.teams.map(team => ({
                   teamName: team.name,
@@ -169,9 +185,18 @@ export const triangularService = {
     );
   },
 
-  async getTriangularHistory(): Promise<TriangularHistory[]> {
+  async getTriangularHistory(seasonId?: string, allSeasons = false): Promise<TriangularHistory[]> {
+    const whereClause = allSeasons ? {} : seasonId ? { seasonId } : { season: { finishSeasonDate: null } };
+    
     const triangulars = (await prisma.triangular.findMany({
+      where: whereClause,
       include: {
+        season: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         teams: {
           orderBy: {
             position: "asc",

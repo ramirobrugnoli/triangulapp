@@ -6,10 +6,13 @@ import { useSearchParams } from "next/navigation";
 import { TriangularHistory } from "@/types";
 import { api } from "@/lib/api";
 import { getColorByTeam } from "@/lib/helpers/helpers";
+import { SeasonSelector } from "@/components/season/SeasonSelector";
+import { useSeasonStore } from "@/store/seasonStore";
 
 function HistorialContent() {
   const searchParams = useSearchParams();
   const triangularId = searchParams.get('triangularId');
+  const { getSelectedSeasonId, isAllSeasonsMode } = useSeasonStore();
   
   const [triangularHistory, setTriangularHistory] = useState<
     TriangularHistory[]
@@ -19,32 +22,41 @@ function HistorialContent() {
   const [currentTriangularIndex, setCurrentTriangularIndex] = useState(0);
   const [highlightedTriangular, setHighlightedTriangular] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchTriangularHistory = async () => {
-      try {
-        setLoading(true);
-        const history = await api.triangular.getTriangularHistory();
-        setTriangularHistory(history);
-        setError(null);
-        
-        // Si hay un triangularId en la URL, buscar y mostrar ese triangular
-        if (triangularId) {
-          const triangularIndex = history.findIndex(t => t.id === triangularId);
-          if (triangularIndex !== -1) {
-            setCurrentTriangularIndex(triangularIndex);
-            setHighlightedTriangular(triangularId);
-          }
+  const fetchTriangularHistory = async () => {
+    try {
+      setLoading(true);
+      const seasonId = getSelectedSeasonId();
+      const allSeasons = isAllSeasonsMode();
+      const history = await api.triangular.getTriangularHistory(seasonId, allSeasons);
+      setTriangularHistory(history);
+      setError(null);
+      
+      // Si hay un triangularId en la URL, buscar y mostrar ese triangular
+      if (triangularId) {
+        const triangularIndex = history.findIndex(t => t.id === triangularId);
+        if (triangularIndex !== -1) {
+          setCurrentTriangularIndex(triangularIndex);
+          setHighlightedTriangular(triangularId);
         }
-      } catch (err) {
-        console.error("Error fetching triangular history:", err);
-        setError("Error al cargar el historial de triangulares");
-      } finally {
-        setLoading(false);
+      } else {
+        // Reset to first triangular when no specific ID is requested
+        setCurrentTriangularIndex(0);
       }
-    };
+    } catch (err) {
+      console.error("Error fetching triangular history:", err);
+      setError("Error al cargar el historial de triangulares");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchTriangularHistory();
   }, [triangularId]);
+
+  const handleSeasonChange = (seasonId: string | null, allSeasons: boolean) => {
+    fetchTriangularHistory();
+  };
 
   if (loading) {
     return (
@@ -131,6 +143,11 @@ function HistorialContent() {
             </button>
           </div>
         )}
+      </div>
+
+      {/* Season Selector */}
+      <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <SeasonSelector onSeasonChange={handleSeasonChange} className="max-w-md" />
       </div>
 
       {/* Navegación entre triangulares */}

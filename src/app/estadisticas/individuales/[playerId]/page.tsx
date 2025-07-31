@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useStatsStore } from "@/store/statsStore";
+import { useSeasonStore } from "@/store/seasonStore";
 import { useRouter, useParams } from "next/navigation";
 import { PlayerStatsCharts } from "@/components/stats/PlayerStatsCharts";
 import { PlayerSelector as StatsPlayerSelector } from "@/components/stats/StatsPlayerSelector";
 import { PlayerTriangularHistory } from "@/components/stats/PlayerTriangularHistory";
+import { SeasonSelector } from "@/components/season/SeasonSelector";
 import { Player } from "@/types";
 import { api } from "@/lib/api";
 
@@ -14,6 +16,7 @@ const EstadisticasIndividualesPage = () => {
   const params = useParams();
   const playerIdFromUrl = Array.isArray(params.playerId) ? params.playerId[0] : params.playerId;
   const { players, loading, error, fetchStats } = useStatsStore();
+  const { getSelectedSeasonId, isAllSeasonsMode } = useSeasonStore();
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [playersWithStats, setPlayersWithStats] = useState<Player[]>([]);
   const [mounted, setMounted] = useState(false);
@@ -29,7 +32,9 @@ const EstadisticasIndividualesPage = () => {
     
     try {
       const playerIds = playerList.map(player => player.id);
-      const statsData = await api.players.getPlayerStatsByIds(playerIds);
+      const seasonId = getSelectedSeasonId();
+      const allSeasons = isAllSeasonsMode();
+      const statsData = await api.players.getPlayerStatsByIds(playerIds, seasonId, allSeasons);
       setPlayersWithStats(statsData);
     } catch (error) {
       console.error("Error al cargar estadísticas completas:", error);
@@ -39,7 +44,9 @@ const EstadisticasIndividualesPage = () => {
   };
 
   useEffect(() => {
-    fetchStats();
+    const seasonId = getSelectedSeasonId();
+    const allSeasons = isAllSeasonsMode();
+    fetchStats(seasonId, allSeasons);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -66,6 +73,10 @@ const EstadisticasIndividualesPage = () => {
     router.replace(`/estadisticas/individuales/${player.id}`);
   };
 
+  const handleSeasonChange = (seasonId: string | null, allSeasons: boolean) => {
+    fetchStats(seasonId || undefined, allSeasons);
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-48">
@@ -90,6 +101,11 @@ const EstadisticasIndividualesPage = () => {
         >
           ← Volver a Estadísticas
         </button>
+      </div>
+
+      {/* Season Selector */}
+      <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <SeasonSelector onSeasonChange={handleSeasonChange} className="max-w-md" />
       </div>
 
       {/* Selector de jugador */}

@@ -2,9 +2,16 @@ import { NextResponse } from "next/server";
 import { triangularService } from "@/lib/services/triangular";
 import type { TriangularResult } from "@/types";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const triangulars = await triangularService.getTriangularHistory();
+    const { searchParams } = new URL(request.url);
+    const seasonId = searchParams.get('seasonId');
+    const allSeasons = searchParams.get('allSeasons') === 'true';
+    
+    const triangulars = await triangularService.getTriangularHistory(
+      seasonId || undefined, 
+      allSeasons
+    );
     return NextResponse.json(triangulars);
   } catch (error) {
     console.error("Error fetching triangulars:", error);

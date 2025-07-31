@@ -5,15 +5,24 @@ import { PointsTable } from "@/components/stats/PointsTable";
 import { TriangularPointsTable } from "@/components/stats/TriangularPointsTable";
 import { useStatsStore } from "@/store/statsStore";
 import { useRouter } from "next/navigation";
+import { SeasonSelector } from "@/components/season/SeasonSelector";
+import { useSeasonStore } from "@/store/seasonStore";
 
 export default function EstadisticasPage() {
   const router = useRouter();
   const { players, triangularHistory, loading, error, fetchStats } = useStatsStore();
+  const { getSelectedSeasonId, isAllSeasonsMode } = useSeasonStore();
 
   useEffect(() => {
-      fetchStats();
+    const seasonId = getSelectedSeasonId();
+    const allSeasons = isAllSeasonsMode();
+    fetchStats(seasonId, allSeasons);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleSeasonChange = (seasonId: string | null, allSeasons: boolean) => {
+    fetchStats(seasonId || undefined, allSeasons);
+  };
 
   if (loading) {
     return (
@@ -38,6 +47,10 @@ export default function EstadisticasPage() {
         </button>
       </div>
 
+      {/* Season Selector */}
+      <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <SeasonSelector onSeasonChange={handleSeasonChange} className="max-w-md" />
+      </div>
 
       {/* Tabla de puntos por triangulares */}
       <TriangularPointsTable

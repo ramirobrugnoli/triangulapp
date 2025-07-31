@@ -19,6 +19,10 @@ interface StatsState {
   players: Player[];
   triangularHistory: TriangularHistory[];
   
+  // Season filtering
+  currentSeasonId: string | null;
+  allSeasons: boolean;
+  
   // UI state for charts
   highlightedPlayers: {
     goals: string | null;
@@ -38,7 +42,8 @@ interface StatsState {
   error: string | null;
   
   // Actions    
-  fetchStats: () => Promise<void>;
+  fetchStats: (seasonId?: string, allSeasons?: boolean) => Promise<void>;
+  setSeasonFilter: (seasonId: string | null, allSeasons: boolean) => void;
   handlePlayerHighlight: (metric: StatMetric, playerName: string) => void;
   handlePlayersToShowChange: (metric: StatMetric, value: number) => void;
   
@@ -51,6 +56,8 @@ export const useStatsStore = create<StatsState>((set, get) => ({
   // Initial state
   players: [],
   triangularHistory: [],
+  currentSeasonId: null,
+  allSeasons: false,
   loading: false,
   error: null,
   highlightedPlayers: {
@@ -68,19 +75,30 @@ export const useStatsStore = create<StatsState>((set, get) => ({
   triangularPointsTable: [],
   
   // Actions
-  fetchStats: async () => {
-    // Don't fetch if we already have data
-    if (get().players.length > 0 && !get().loading) {
+  fetchStats: async (seasonId?: string, allSeasons = false) => {
+    const currentState = get();
+    
+    // Determine if we need to refetch based on season filter changes
+    const seasonChanged = currentState.currentSeasonId !== (seasonId || null) || 
+                         currentState.allSeasons !== allSeasons;
+    
+    // Don't fetch if we already have data and season hasn't changed
+    if (currentState.players.length > 0 && !currentState.loading && !seasonChanged) {
       return;
     }
     
     try {
-      set({ loading: true, error: null });
+      set({ 
+        loading: true, 
+        error: null,
+        currentSeasonId: seasonId || null,
+        allSeasons
+      });
       
-      // Fetch real data in production
+      // Fetch real data with season filtering
       const [playersData, historyData] = await Promise.all([
-        api.players.getAllPlayers(),
-        api.triangular.getTriangularHistory(),
+        api.players.getAllPlayers(seasonId, allSeasons),
+        api.triangular.getTriangularHistory(seasonId, allSeasons),
       ]);
       
       set({ 
@@ -97,6 +115,25 @@ export const useStatsStore = create<StatsState>((set, get) => ({
         error: "Error al cargar los datos. Por favor, intenta nuevamente.",
         loading: false 
       });
+    }
+  },
+
+  setSeasonFilter: (seasonId: string | null, allSeasons: boolean) => {
+    const currentState = get();
+    
+    // Only update if the filter actually changed
+    if (currentState.currentSeasonId !== seasonId || currentState.allSeasons !== allSeasons) {
+      set({
+        currentSeasonId: seasonId,
+        allSeasons,
+        // Clear existing data to force refetch
+        players: [],
+        triangularHistory: [],
+        triangularPointsTable: []
+      });
+      
+      // Fetch new data with the updated filters
+      get().fetchStats(seasonId || undefined, allSeasons);
     }
   },
   
