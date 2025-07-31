@@ -81,6 +81,11 @@ export default function AdminPage() {
   // Season editing states
   const [editingSeasonId, setEditingSeasonId] = useState<string | null>(null);
   const [editingSeasonName, setEditingSeasonName] = useState<string>("");
+  
+  // Season expansion states
+  const [expandedSeasonId, setExpandedSeasonId] = useState<string | null>(null);
+  const [seasonTriangulars, setSeasonTriangulars] = useState<{ [seasonId: string]: TriangularHistory[] }>({});
+  const [loadingSeasonTriangulars, setLoadingSeasonTriangulars] = useState<string | null>(null);
   const [editScorers, setEditScorers] = useState<Array<{ id?: string; name?: string; goals: number; team: Team }>>([]);
   const [showEditTeamsModal, setShowEditTeamsModal] = useState(false);
   const [editTeamsTriangular, setEditTeamsTriangular] = useState<TriangularHistory | null>(null);
@@ -497,6 +502,38 @@ export default function AdminPage() {
     setEditingSeasonName("");
   };
 
+  const loadSeasonTriangulars = async (seasonId: string) => {
+    if (seasonTriangulars[seasonId]) {
+      // Ya tenemos los datos en cache
+      return;
+    }
+
+    try {
+      setLoadingSeasonTriangulars(seasonId);
+      const triangulars = await api.triangular.getTriangularHistory(seasonId, false);
+      setSeasonTriangulars(prev => ({
+        ...prev,
+        [seasonId]: triangulars
+      }));
+    } catch (error) {
+      console.error("Error loading season triangulars:", error);
+      toast.error("Error al cargar triangulares de la temporada");
+    } finally {
+      setLoadingSeasonTriangulars(null);
+    }
+  };
+
+  const handleSeasonClick = async (seasonId: string) => {
+    if (expandedSeasonId === seasonId) {
+      // Si ya está expandida, la colapsamos
+      setExpandedSeasonId(null);
+    } else {
+      // Expandir y cargar triangulares
+      setExpandedSeasonId(seasonId);
+      await loadSeasonTriangulars(seasonId);
+    }
+  };
+
   const handleConfirmMoveTriangular = async () => {
     if (!triangularToMove || !targetSeasonId) {
       toast.error("Selecciona una temporada de destino");
@@ -737,15 +774,20 @@ export default function AdminPage() {
                 <p className="text-gray-400">No hay temporadas creadas</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-4">
                 {seasons.map((season) => (
                   <div
                     key={season.id}
-                    className={`bg-gray-700 rounded-lg p-4 border ${
+                    className={`bg-gray-700 rounded-lg border ${
                       !season.finishSeasonDate ? 'border-green-500' : 'border-gray-600'
-                    }`}
+                    } ${expandedSeasonId === season.id ? 'ring-2 ring-blue-500' : ''}`}
                   >
-                    <div className="flex items-start justify-between mb-2">
+                    {/* Header clickeable */}
+                    <div 
+                      className="p-4 cursor-pointer hover:bg-gray-600 transition-colors rounded-lg"
+                      onClick={() => handleSeasonClick(season.id)}
+                    >
+                      <div className="flex items-start justify-between mb-2">
                       {editingSeasonId === season.id ? (
                         <div className="flex-1 flex items-center gap-2">
                           <input
@@ -817,6 +859,93 @@ export default function AdminPage() {
                         }`}></div>
                       </div>
                     </div>
+                    
+                    {/* Icono de expansión */}
+                    <div className="flex justify-center">
+                      <svg 
+                        className={`w-5 h-5 text-gray-400 transition-transform ${
+                          expandedSeasonId === season.id ? 'rotate-180' : ''
+                        }`} 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                    </div>
+
+                    {/* Sección expandible con triangulares */}
+                    {expandedSeasonId === season.id && (
+                      <div className="border-t border-gray-600 p-4">
+                        <h4 className="text-lg font-semibold text-white mb-4">
+                          Triangulares de {season.name}
+                        </h4>
+                        
+                        {loadingSeasonTriangulars === season.id ? (
+                          <div className="flex items-center justify-center py-8">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                            <span className="ml-2 text-gray-400">Cargando triangulares...</span>
+                          </div>
+                        ) : seasonTriangulars[season.id]?.length === 0 ? (
+                          <div className="text-center py-8">
+                            <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <p className="text-gray-400">No hay triangulares en esta temporada</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {seasonTriangulars[season.id]?.map((triangular) => (
+                              <div key={triangular.id} className="bg-gray-600 rounded-lg p-3 flex items-center justify-between">
+                                <div className="flex items-center space-x-4">
+                                  <div className="text-sm">
+                                    <p className="text-white font-medium">
+                                      {new Date(triangular.date).toLocaleDateString('es-ES', {
+                                        day: '2-digit',
+                                        month: '2-digit',
+                                        year: 'numeric'
+                                      })}
+                                    </p>
+                                    <p className="text-gray-400 text-xs">
+                                      Campeón: {getColorByTeam(triangular.champion)}
+                                    </p>
+                                  </div>
+                                  <div className="text-xs text-gray-300">
+                                    {triangular.teams.length} equipos
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleMoveTriangular(triangular.id);
+                                    }}
+                                    className="text-blue-400 hover:text-blue-300 p-1 rounded transition-colors"
+                                    title="Mover a otra temporada"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                    </svg>
+                                  </button>
+                                  <a
+                                    href={`/historial?triangularId=${triangular.id}`}
+                                    className="text-green-400 hover:text-green-300 p-1 rounded transition-colors"
+                                    title="Ver detalles"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                  </a>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

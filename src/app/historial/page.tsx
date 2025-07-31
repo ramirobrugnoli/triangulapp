@@ -54,7 +54,7 @@ function HistorialContent() {
     fetchTriangularHistory();
   }, [triangularId]);
 
-  const handleSeasonChange = (seasonId: string | null, allSeasons: boolean) => {
+  const handleSeasonChange = () => {
     fetchTriangularHistory();
   };
 

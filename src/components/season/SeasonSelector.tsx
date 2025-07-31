@@ -102,7 +102,7 @@ export const SeasonSelector: React.FC<SeasonSelectorProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-sm font-medium">
-                {isHydrated ? getCurrentSeasonForDisplay() : "Cargando..."}
+                {!isHydrated ? "Cargando..." : getCurrentSeasonForDisplay()}
               </span>
               {isHydrated && selectedSeason && (
                 <span className="text-xs text-gray-400">

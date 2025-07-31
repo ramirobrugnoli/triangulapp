@@ -20,7 +20,13 @@ export class PlayersService {
           where: {
             triangular: triangularWhere
           },
-          include: {
+          select: {
+            team: true,
+            goals: true,
+            wins: true,
+            normalWins: true,
+            draws: true,
+            points: true,
             triangular: {
               include: {
                 teams: true,
