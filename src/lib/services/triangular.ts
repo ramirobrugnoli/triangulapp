@@ -120,8 +120,8 @@ export const triangularService = {
                 create: result.teams.map(team => ({
                   teamName: team.name,
                   points: team.points,
-                  wins: team.wins,
-                  normalWins: team.normalWins,
+                  wins: team.wins + team.normalWins, // Consolidar victorias en wins
+                  normalWins: 0, // Mantener campo para compatibilidad
                   draws: team.draws,
                   position: team.position,
                 })),
@@ -136,8 +136,8 @@ export const triangularService = {
               triangularId: triangular.id,
               team: team.name,
               goals: result.scorers[id] || 0,
-              wins: team.wins,
-              normalWins: team.normalWins,
+              wins: team.wins + team.normalWins, // Consolidar victorias
+              normalWins: 0, // Mantener campo para compatibilidad
               draws: team.draws,
               points: team.points,
             }))
@@ -165,10 +165,10 @@ export const triangularService = {
               data: {
                 goals: { increment: result.scorers[playerId] || 0 },
                 matches: { increment: matchesPerPlayer },
-                wins: { increment: playerTeamStats.wins },
+                wins: { increment: playerTeamStats.wins + playerTeamStats.normalWins }, // Consolidar victorias
                 draws: { increment: playerTeamStats.draws },
                 // Las derrotas se calculan como: partidos jugados - victorias - empates
-                losses: { increment: matchesPerPlayer - playerTeamStats.wins - playerTeamStats.draws },
+                losses: { increment: matchesPerPlayer - (playerTeamStats.wins + playerTeamStats.normalWins) - playerTeamStats.draws },
               },
             });
           }

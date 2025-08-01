@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { TriangularHistory, Team } from "@/types";
 import { api, Season } from "@/lib/api";
 import { toast, ToastContainer } from "react-toastify";
@@ -29,7 +30,6 @@ interface CreateFormData {
       players: string[];
       points: number;
       wins: number;
-      normalWins: number;
       draws: number;
     };
     second: {
@@ -37,7 +37,6 @@ interface CreateFormData {
       players: string[];
       points: number;
       wins: number;
-      normalWins: number;
       draws: number;
     };
     third: {
@@ -45,7 +44,6 @@ interface CreateFormData {
       players: string[];
       points: number;
       wins: number;
-      normalWins: number;
       draws: number;
     };
   };
@@ -55,6 +53,7 @@ interface CreateFormData {
 export default function AdminPage() {
   const [triangulars, setTriangulars] = useState<TriangularHistory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [triangularsLoading, setTriangularsLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditFormData>({ champion: "", date: "" });
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmation | null>(null);
@@ -62,9 +61,9 @@ export default function AdminPage() {
   const [createForm, setCreateForm] = useState<CreateFormData>({
     date: new Date().toISOString().split('T')[0],
     teams: {
-      first: { name: "Equipo 1", players: [], points: 0, wins: 0, normalWins: 0, draws: 0 },
-      second: { name: "Equipo 2", players: [], points: 0, wins: 0, normalWins: 0, draws: 0 },
-      third: { name: "Equipo 3", players: [], points: 0, wins: 0, normalWins: 0, draws: 0 }
+      first: { name: "Equipo 1", players: [], points: 0, wins: 0, draws: 0 },
+      second: { name: "Equipo 2", players: [], points: 0, wins: 0, draws: 0 },
+      third: { name: "Equipo 3", players: [], points: 0, wins: 0, draws: 0 }
     },
     scorers: {}
   });
@@ -82,10 +81,6 @@ export default function AdminPage() {
   const [editingSeasonId, setEditingSeasonId] = useState<string | null>(null);
   const [editingSeasonName, setEditingSeasonName] = useState<string>("");
   
-  // Season expansion states
-  const [expandedSeasonId, setExpandedSeasonId] = useState<string | null>(null);
-  const [seasonTriangulars, setSeasonTriangulars] = useState<{ [seasonId: string]: TriangularHistory[] }>({});
-  const [loadingSeasonTriangulars, setLoadingSeasonTriangulars] = useState<string | null>(null);
   const [editScorers, setEditScorers] = useState<Array<{ id?: string; name?: string; goals: number; team: Team }>>([]);
   const [showEditTeamsModal, setShowEditTeamsModal] = useState(false);
   const [editTeamsTriangular, setEditTeamsTriangular] = useState<TriangularHistory | null>(null);
@@ -100,13 +95,21 @@ export default function AdminPage() {
   const [triangularToMove, setTriangularToMove] = useState<string | null>(null);
   const [targetSeasonId, setTargetSeasonId] = useState<string>("");
 
+  // Router for navigation
+  const router = useRouter();
+
   // Season store
   const { 
     seasons, 
+    selectedSeason,
+    allSeasonsSelected,
     fetchSeasons, 
     createSeason, 
     moveTriangularToSeason,
     updateSeasonName,
+    setSelectedSeason,
+    setAllSeasonsSelected,
+    getSelectedSeasonId,
     loading: seasonsLoading 
   } = useSeasonStore();
 
@@ -117,11 +120,45 @@ export default function AdminPage() {
     'Equipo 3': 'bg-[#ced4da]', // Negro
   };
 
+  const loadTriangulars = useCallback(async () => {
+    try {
+      setTriangularsLoading(true);
+      const selectedSeasonId = getSelectedSeasonId();
+      const data = await api.triangular.getTriangularHistory(selectedSeasonId, allSeasonsSelected);
+      setTriangulars(data);
+    } catch (error) {
+      toast.error("Error al cargar triangulares");
+      console.error("Error loading triangulars:", error);
+    } finally {
+      setTriangularsLoading(false);
+    }
+  }, [getSelectedSeasonId, allSeasonsSelected]);
+
+  // Efecto inicial: carga players y seasons, pero NO triangulars aún
   useEffect(() => {
-    loadTriangulars();
     loadPlayers();
     fetchSeasons();
+    setLoading(false); // El loading principal se completa aquí
   }, [fetchSeasons]);
+
+  // Efecto para seleccionar automáticamente la temporada activa cuando se cargan las temporadas
+  useEffect(() => {
+    if (seasons.length > 0 && !selectedSeason && allSeasonsSelected) {
+      // Buscar la temporada activa (sin finishSeasonDate)
+      const activeSeason = seasons.find(season => !season.finishSeasonDate);
+      if (activeSeason) {
+        setSelectedSeason(activeSeason);
+      }
+    }
+  }, [seasons, selectedSeason, allSeasonsSelected, setSelectedSeason]);
+
+  // Efecto separado para cargar triangulares cuando cambie la selección de temporada
+  useEffect(() => {
+    // Solo cargar triangulares si ya se han cargado las temporadas, O si es la carga inicial
+    if (seasons.length > 0 || (seasons.length === 0 && !seasonsLoading)) {
+      loadTriangulars();
+    }
+  }, [selectedSeason, allSeasonsSelected, loadTriangulars, seasons.length, seasonsLoading]);
 
   // Cerrar popup al hacer click fuera
   useEffect(() => {
@@ -139,19 +176,6 @@ export default function AdminPage() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showCalculatorInfo]);
-
-  const loadTriangulars = async () => {
-    try {
-      setLoading(true);
-      const data = await api.triangular.getAllTriangulars();
-      setTriangulars(data);
-    } catch (error) {
-      toast.error("Error al cargar triangulares");
-      console.error("Error loading triangulars:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const loadPlayers = async () => {
     try {
@@ -210,6 +234,7 @@ export default function AdminPage() {
       const teamKeys: Array<'first' | 'second' | 'third'> = ['first', 'second', 'third'];
       const teamsArray = teamKeys.map((key, idx) => ({
         ...createForm.teams[key],
+        normalWins: 0, // Mantener para compatibilidad de tipos
         position: idx + 1,
       }));
       const triangularData = {
@@ -232,9 +257,9 @@ export default function AdminPage() {
     setCreateForm({
       date: new Date().toISOString().split('T')[0],
       teams: {
-        first: { name: "Equipo 1", players: [], points: 0, wins: 0, normalWins: 0, draws: 0 },
-        second: { name: "Equipo 2", players: [], points: 0, wins: 0, normalWins: 0, draws: 0 },
-        third: { name: "Equipo 3", players: [], points: 0, wins: 0, normalWins: 0, draws: 0 }
+        first: { name: "Equipo 1", players: [], points: 0, wins: 0, draws: 0 },
+        second: { name: "Equipo 2", players: [], points: 0, wins: 0, draws: 0 },
+        third: { name: "Equipo 3", players: [], points: 0, wins: 0, draws: 0 }
       },
       scorers: {}
     });
@@ -285,50 +310,19 @@ export default function AdminPage() {
       points,
       goals: teamGoals[index],
       wins: 0,
-      normalWins: 0,
       draws: 0
     }));
 
-    // Calcular goles totales para determinar proporciones
-    const totalGoals = teamGoals.reduce((sum, goals) => sum + goals, 0);
-    
     teamsWithStats.forEach(team => {
       const points = team.points;
-      const goals = team.goals;
       let remainingPoints = points;
       
-      // Si el equipo tiene goles significativos comparado con el total, 
-      // es más probable que tenga victorias por diferencia de 2+ goles
-      const goalRatio = totalGoals > 0 ? goals / totalGoals : 0;
+      // Todas las victorias ahora valen 3 puntos
+      team.wins = Math.floor(points / 3);
+      remainingPoints = points % 3;
       
-      // Estimar victorias por 2+ goles basándose en goles y puntos
-      // Equipos con más goles relativos tienen más probabilidad de victorias amplias
-      let estimatedBigWins = 0;
-      if (goalRatio > 0.4 && points >= 6) {
-        // Si tiene muchos goles y puntos, probablemente tenga victorias amplias
-        estimatedBigWins = Math.min(Math.floor(points / 3), Math.floor(goals / 3));
-      } else if (goalRatio > 0.25 && points >= 3) {
-        // Proporción moderada de goles
-        estimatedBigWins = Math.min(Math.floor(points / 4), Math.floor(goals / 4));
-      }
-      
-      team.wins = estimatedBigWins;
-      remainingPoints -= estimatedBigWins * 3;
-      
-      // Victorias normales con el resto de puntos
-      team.normalWins = Math.floor(remainingPoints / 2);
-      remainingPoints -= team.normalWins * 2;
-      
-      // Empates con puntos restantes
+      // Empates con puntos restantes (solo 1 punto cada uno)
       team.draws = remainingPoints;
-      
-      // Validación: si quedan puntos sin usar y no hay goles suficientes para más victorias amplias,
-      // convertir algunas victorias normales en empates para usar todos los puntos
-      if (remainingPoints > 0 && team.normalWins > 0) {
-        const extraDraws = Math.min(remainingPoints, team.normalWins);
-        team.normalWins -= extraDraws;
-        team.draws += extraDraws * 2 + remainingPoints;
-      }
     });
 
     return teamsWithStats;
@@ -364,7 +358,6 @@ export default function AdminPage() {
         newTeams[teamKey] = {
           ...newTeams[teamKey],
           wins: stat.wins,
-          normalWins: stat.normalWins,
           draws: stat.draws
         };
       });
@@ -502,37 +495,21 @@ export default function AdminPage() {
     setEditingSeasonName("");
   };
 
-  const loadSeasonTriangulars = async (seasonId: string) => {
-    if (seasonTriangulars[seasonId]) {
-      // Ya tenemos los datos en cache
-      return;
-    }
 
-    try {
-      setLoadingSeasonTriangulars(seasonId);
-      const triangulars = await api.triangular.getTriangularHistory(seasonId, false);
-      setSeasonTriangulars(prev => ({
-        ...prev,
-        [seasonId]: triangulars
-      }));
-    } catch (error) {
-      console.error("Error loading season triangulars:", error);
-      toast.error("Error al cargar triangulares de la temporada");
-    } finally {
-      setLoadingSeasonTriangulars(null);
-    }
-  };
+  const handleSeasonClick = (seasonId: string) => {
+    const clickedSeason = seasons.find(s => s.id === seasonId);
+    if (!clickedSeason) return;
 
-  const handleSeasonClick = async (seasonId: string) => {
-    if (expandedSeasonId === seasonId) {
-      // Si ya está expandida, la colapsamos
-      setExpandedSeasonId(null);
+    if (selectedSeason?.id === seasonId) {
+      // Si ya está seleccionada, deseleccionar y mostrar todas
+      setAllSeasonsSelected(true);
     } else {
-      // Expandir y cargar triangulares
-      setExpandedSeasonId(seasonId);
-      await loadSeasonTriangulars(seasonId);
+      // Seleccionar temporada específica
+      setSelectedSeason(clickedSeason);
     }
+    // El useEffect se encargará de recargar automáticamente
   };
+
 
   const handleConfirmMoveTriangular = async () => {
     if (!triangularToMove || !targetSeasonId) {
@@ -780,11 +757,15 @@ export default function AdminPage() {
                     key={season.id}
                     className={`bg-gray-700 rounded-lg border ${
                       !season.finishSeasonDate ? 'border-green-500' : 'border-gray-600'
-                    } ${expandedSeasonId === season.id ? 'ring-2 ring-blue-500' : ''}`}
+                    } ${selectedSeason?.id === season.id ? 'ring-2 ring-blue-500' : ''}`}
                   >
                     {/* Header clickeable */}
                     <div 
-                      className="p-4 cursor-pointer hover:bg-gray-600 transition-colors rounded-lg"
+                      className={`p-4 cursor-pointer transition-colors rounded-lg ${
+                        selectedSeason?.id === season.id 
+                          ? 'bg-blue-700 hover:bg-blue-600' 
+                          : 'hover:bg-gray-600'
+                      }`}
                       onClick={() => handleSeasonClick(season.id)}
                     >
                       <div className="flex items-start justify-between mb-2">
@@ -826,11 +807,18 @@ export default function AdminPage() {
                       ) : (
                         <h3 className="text-lg font-semibold text-white">{season.name}</h3>
                       )}
-                      {!season.finishSeasonDate && (
-                        <span className="text-xs bg-green-600 text-green-100 px-2 py-1 rounded-full">
-                          Activa
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {selectedSeason?.id === season.id && (
+                          <span className="text-xs bg-blue-600 text-blue-100 px-2 py-1 rounded-full">
+                            Filtro Activo
+                          </span>
+                        )}
+                        {!season.finishSeasonDate && (
+                          <span className="text-xs bg-green-600 text-green-100 px-2 py-1 rounded-full">
+                            Activa
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <p className="text-sm text-gray-400 mb-3">
                       {formatSeasonDate(season)}
@@ -859,93 +847,7 @@ export default function AdminPage() {
                         }`}></div>
                       </div>
                     </div>
-                    
-                    {/* Icono de expansión */}
-                    <div className="flex justify-center">
-                      <svg 
-                        className={`w-5 h-5 text-gray-400 transition-transform ${
-                          expandedSeasonId === season.id ? 'rotate-180' : ''
-                        }`} 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
                     </div>
-                    </div>
-
-                    {/* Sección expandible con triangulares */}
-                    {expandedSeasonId === season.id && (
-                      <div className="border-t border-gray-600 p-4">
-                        <h4 className="text-lg font-semibold text-white mb-4">
-                          Triangulares de {season.name}
-                        </h4>
-                        
-                        {loadingSeasonTriangulars === season.id ? (
-                          <div className="flex items-center justify-center py-8">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-                            <span className="ml-2 text-gray-400">Cargando triangulares...</span>
-                          </div>
-                        ) : seasonTriangulars[season.id]?.length === 0 ? (
-                          <div className="text-center py-8">
-                            <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <p className="text-gray-400">No hay triangulares en esta temporada</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {seasonTriangulars[season.id]?.map((triangular) => (
-                              <div key={triangular.id} className="bg-gray-600 rounded-lg p-3 flex items-center justify-between">
-                                <div className="flex items-center space-x-4">
-                                  <div className="text-sm">
-                                    <p className="text-white font-medium">
-                                      {new Date(triangular.date).toLocaleDateString('es-ES', {
-                                        day: '2-digit',
-                                        month: '2-digit',
-                                        year: 'numeric'
-                                      })}
-                                    </p>
-                                    <p className="text-gray-400 text-xs">
-                                      Campeón: {getColorByTeam(triangular.champion)}
-                                    </p>
-                                  </div>
-                                  <div className="text-xs text-gray-300">
-                                    {triangular.teams.length} equipos
-                                  </div>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleMoveTriangular(triangular.id);
-                                    }}
-                                    className="text-blue-400 hover:text-blue-300 p-1 rounded transition-colors"
-                                    title="Mover a otra temporada"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                                    </svg>
-                                  </button>
-                                  <a
-                                    href={`/historial?triangularId=${triangular.id}`}
-                                    className="text-green-400 hover:text-green-300 p-1 rounded transition-colors"
-                                    title="Ver detalles"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                    </svg>
-                                  </a>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -955,23 +857,30 @@ export default function AdminPage() {
 
         {/* Triangulars List */}
         <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-700 flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-white">Lista de Triangulares</h2>
-            <button
-              onClick={() => {
-                resetCreateForm();
-                setShowCreateModal(true);
-              }}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-medium transition-colors flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Nuevo Triangular
-            </button>
+          <div className="px-6 py-4 border-b border-gray-700">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-white">Lista de Triangulares</h2>
+              <button
+                onClick={() => {
+                  resetCreateForm();
+                  setShowCreateModal(true);
+                }}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-medium transition-colors flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Nuevo Triangular
+              </button>
+            </div>
           </div>
 
-          {triangulars.length === 0 ? (
+          {triangularsLoading ? (
+            <div className="p-8 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+              <p className="text-gray-400 text-lg">Cargando triangulares...</p>
+            </div>
+          ) : triangulars.length === 0 ? (
             <div className="p-8 text-center">
               <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -1081,6 +990,13 @@ export default function AdminPage() {
                           </div>
                         ) : (
                           <div className="space-x-1">
+                            <button
+                              onClick={() => router.push(`/historial?triangularId=${triangular.id}`)}
+                              className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs transition-colors"
+                              title="Ver detalles del triangular"
+                            >
+                              Ver
+                            </button>
                             <button
                               onClick={() => {
                                 handleSelectTriangular(triangular.id);
@@ -1427,15 +1343,6 @@ export default function AdminPage() {
                               className="bg-gray-600 border border-gray-500 rounded px-2 py-1 text-white w-full text-sm focus:outline-none focus:border-blue-500"
                             />
                           </div>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-300 mb-1">Victorias Normales</label>
-                          <input
-                            type="number"
-                            value={team.normalWins}
-                            onChange={(e) => updateTeamStats(teamKey, 'normalWins', parseInt(e.target.value) || 0)}
-                            className="bg-gray-600 border border-gray-500 rounded px-2 py-1 text-white w-full text-sm focus:outline-none focus:border-blue-500"
-                          />
                         </div>
                       </div>
 

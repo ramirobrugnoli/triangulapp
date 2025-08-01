@@ -24,7 +24,7 @@ export class PlayersService {
             team: true,
             goals: true,
             wins: true,
-            normalWins: true,
+            normalWins: true, // Mantener para datos históricos
             draws: true,
             points: true,
             triangular: {

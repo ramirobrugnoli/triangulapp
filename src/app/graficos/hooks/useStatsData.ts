@@ -12,20 +12,16 @@ export function useStatsData() {
   const [highlightedPlayers, setHighlightedPlayers] = useState<{
     goals: string | null;
     wins: string | null;
-    normalWins: string | null;
   }>({
     goals: null,
     wins: null,
-    normalWins: null,
   });
   const [playersToShow, setPlayersToShow] = useState<{
     goals: number;
     wins: number;
-    normalWins: number;
   }>({
     goals: 15,
     wins: 15,
-    normalWins: 15,
   });
 
   useEffect(() => {
@@ -73,7 +69,6 @@ export function useStatsData() {
     switch (metric) {
       case 'goals': return 'Goles';
       case 'wins': return 'Victorias';
-      case 'normalWins': return 'Victorias Normales';
       default: return '';
     }
   };
@@ -94,8 +89,6 @@ export function useStatsData() {
         return b.stats.goals - a.stats.goals;
       } else if (metric === 'wins') {
         return b.stats.wins - a.stats.wins;
-      } else if (metric === 'normalWins') {
-        return (b.stats.normalWins || 0) - (a.stats.normalWins || 0);
       }
       return 0;
     });
@@ -104,7 +97,6 @@ export function useStatsData() {
     const filteredPlayers = sortedPlayers.filter(player => {
       if (metric === 'goals') return player.stats.goals > 0;
       if (metric === 'wins') return player.stats.wins > 0;
-      if (metric === 'normalWins') return (player.stats.normalWins || 0) > 0;
       return false;
     });
 
@@ -140,7 +132,6 @@ export function useStatsData() {
       data: limitedPlayers.map(p => {
         if (metric === 'goals') return p.stats.goals;
         if (metric === 'wins') return p.stats.wins;
-        if (metric === 'normalWins') return p.stats.normalWins || 0;
         return 0;
       })
     }];

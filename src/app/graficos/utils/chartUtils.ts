@@ -10,7 +10,6 @@ export function getMetricLabel(metric: StatMetric): string {
   switch (metric) {
     case 'goals': return 'Goles';
     case 'wins': return 'Victorias';
-    case 'normalWins': return 'Victorias Normales';
     default: return '';
   }
 }
@@ -34,8 +33,6 @@ export function prepareChartDataFromPlayers(
       return b.stats.goals - a.stats.goals;
     } else if (metric === 'wins') {
       return b.stats.wins - a.stats.wins;
-    } else if (metric === 'normalWins') {
-      return (b.stats.normalWins || 0) - (a.stats.normalWins || 0);
     }
     return 0;
   });
@@ -44,7 +41,6 @@ export function prepareChartDataFromPlayers(
   const filteredPlayers = sortedPlayers.filter(player => {
     if (metric === 'goals') return player.stats.goals > 0;
     if (metric === 'wins') return player.stats.wins > 0;
-    if (metric === 'normalWins') return (player.stats.normalWins || 0) > 0;
     return false;
   });
 
@@ -66,7 +62,6 @@ export function prepareChartDataFromPlayers(
     data: limitedPlayers.map(p => {
       if (metric === 'goals') return p.stats.goals;
       if (metric === 'wins') return p.stats.wins;
-      if (metric === 'normalWins') return p.stats.normalWins || 0;
       return 0;
     })
   }];
@@ -110,7 +105,6 @@ export function prepareChartDataFromTriangularPoints(
     stats: {
       goals: 0, // No relevante para este gráfico
       wins: p.triangularWins,
-      normalWins: 0, // No relevante para este gráfico
       matches: p.triangularsPlayed,
       draws: 0, // No relevante para este gráfico
       losses: 0, // No relevante para este gráfico

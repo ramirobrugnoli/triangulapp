@@ -20,7 +20,7 @@ interface GameStore extends GameState {
   rotateTeams: (winner: "A" | "B" | "draw") => void;
 
   // Funciones de puntajes diarios
-  updateDailyScore: (team: Team, type: "win" | "normalWin" | "draw") => void;
+  updateDailyScore: (team: Team, type: "win" | "draw") => void;
   getTeamStats: (teamName: Team) => TeamScore | undefined;
 
   // Funciones de control de juego
@@ -245,13 +245,8 @@ export const useGameStore = create<GameStore>()(
       // Funciones de puntajes diarios
       updateDailyScore: (team, type) =>
         set((state) => {
-          const pointsToAdd = type === "win" ? 3 : type === "normalWin" ? 2 : 1;
-          const statToUpdate =
-            type === "win"
-              ? "wins"
-              : type === "normalWin"
-                ? "normalWins"
-                : "draws";
+          const pointsToAdd = type === "win" ? 3 : 1;
+          const statToUpdate = type === "win" ? "wins" : "draws";
 
           return {
             ...state,
@@ -669,27 +664,19 @@ export const useGameStore = create<GameStore>()(
           if (originalResult === "A") {
             const teamAIndex = newDailyScores.findIndex(s => s.name === originalMatch.teamA.name);
             if (teamAIndex !== -1) {
-              const goalDifference = originalMatch.teamA.score - originalMatch.teamB.score;
-              const isWinBy2Goals = goalDifference >= 2;
-              
               newDailyScores[teamAIndex] = {
                 ...newDailyScores[teamAIndex],
-                points: newDailyScores[teamAIndex].points - (isWinBy2Goals ? 3 : 2),
-                wins: isWinBy2Goals ? newDailyScores[teamAIndex].wins - 1 : newDailyScores[teamAIndex].wins,
-                normalWins: !isWinBy2Goals ? newDailyScores[teamAIndex].normalWins - 1 : newDailyScores[teamAIndex].normalWins,
+                points: newDailyScores[teamAIndex].points - 3,
+                wins: newDailyScores[teamAIndex].wins - 1,
               };
             }
           } else if (originalResult === "B") {
             const teamBIndex = newDailyScores.findIndex(s => s.name === originalMatch.teamB.name);
             if (teamBIndex !== -1) {
-              const goalDifference = originalMatch.teamB.score - originalMatch.teamA.score;
-              const isWinBy2Goals = goalDifference >= 2;
-              
               newDailyScores[teamBIndex] = {
                 ...newDailyScores[teamBIndex],
-                points: newDailyScores[teamBIndex].points - (isWinBy2Goals ? 3 : 2),
-                wins: isWinBy2Goals ? newDailyScores[teamBIndex].wins - 1 : newDailyScores[teamBIndex].wins,
-                normalWins: !isWinBy2Goals ? newDailyScores[teamBIndex].normalWins - 1 : newDailyScores[teamBIndex].normalWins,
+                points: newDailyScores[teamBIndex].points - 3,
+                wins: newDailyScores[teamBIndex].wins - 1,
               };
             }
           } else if (originalResult === "draw") {
@@ -715,27 +702,21 @@ export const useGameStore = create<GameStore>()(
           if (newResult === "A") {
             const teamAIndex = newDailyScores.findIndex(s => s.name === editedMatch.teamA.name);
             if (teamAIndex !== -1) {
-              const goalDifference = editedMatch.teamA.score - editedMatch.teamB.score;
-              const isWinBy2Goals = goalDifference >= 2;
               
               newDailyScores[teamAIndex] = {
                 ...newDailyScores[teamAIndex],
-                points: newDailyScores[teamAIndex].points + (isWinBy2Goals ? 3 : 2),
-                wins: isWinBy2Goals ? newDailyScores[teamAIndex].wins + 1 : newDailyScores[teamAIndex].wins,
-                normalWins: !isWinBy2Goals ? newDailyScores[teamAIndex].normalWins + 1 : newDailyScores[teamAIndex].normalWins,
+                points: newDailyScores[teamAIndex].points + 3,
+                wins: newDailyScores[teamAIndex].wins + 1,
               };
             }
           } else if (newResult === "B") {
             const teamBIndex = newDailyScores.findIndex(s => s.name === editedMatch.teamB.name);
             if (teamBIndex !== -1) {
-              const goalDifference = editedMatch.teamB.score - editedMatch.teamA.score;
-              const isWinBy2Goals = goalDifference >= 2;
               
               newDailyScores[teamBIndex] = {
                 ...newDailyScores[teamBIndex],
-                points: newDailyScores[teamBIndex].points + (isWinBy2Goals ? 3 : 2),
-                wins: isWinBy2Goals ? newDailyScores[teamBIndex].wins + 1 : newDailyScores[teamBIndex].wins,
-                normalWins: !isWinBy2Goals ? newDailyScores[teamBIndex].normalWins + 1 : newDailyScores[teamBIndex].normalWins,
+                points: newDailyScores[teamBIndex].points + 3,
+                wins: newDailyScores[teamBIndex].wins + 1,
               };
             }
           } else if (newResult === "draw") {
@@ -995,7 +976,7 @@ export const useGameStore = create<GameStore>()(
 
       acceptMatchEnd: () => {
         const state = get();
-        const { matchEndModal, scores, activeTeams } = state;
+        const { matchEndModal, activeTeams } = state;
         
         if (!matchEndModal.result) return;
         
@@ -1006,13 +987,9 @@ export const useGameStore = create<GameStore>()(
         
         // Procesar resultado del partido
         if (result === "A") {
-          const goalDifference = scores.teamA - scores.teamB;
-          const scoreType = goalDifference === 1 ? "normalWin" : "win";
-          get().updateDailyScore(activeTeams.teamA.name, scoreType);
+          get().updateDailyScore(activeTeams.teamA.name, "win");
         } else if (result === "B") {
-          const goalDifference = scores.teamB - scores.teamA;
-          const scoreType = goalDifference === 1 ? "normalWin" : "win";
-          get().updateDailyScore(activeTeams.teamB.name, scoreType);
+          get().updateDailyScore(activeTeams.teamB.name, "win");
         } else {
           get().updateDailyScore(activeTeams.teamA.name, "draw");
           get().updateDailyScore(activeTeams.teamB.name, "draw");

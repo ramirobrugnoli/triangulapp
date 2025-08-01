@@ -62,7 +62,7 @@ export async function POST(request: Request): Promise<Response> {
             team: true,
             goals: true,
             wins: true,
-            normalWins: true,
+            normalWins: true, // Mantener para datos históricos
             draws: true,
             points: true,
             triangular: {
