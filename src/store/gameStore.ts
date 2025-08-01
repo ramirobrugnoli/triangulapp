@@ -866,32 +866,45 @@ export const useGameStore = create<GameStore>()(
           draws: number;
           position: number;
         };
+        const findStats = (teamName: string) =>
+          state.dailyScores.find((s) => s.name === teamName) || {
+            name: teamName,
+            points: 0,
+            wins: 0,
+            normalWins: 0,
+            draws: 0,
+          };
+
+        const teamAStats = findStats(state.activeTeams.teamA.name);
+        const teamBStats = findStats(state.activeTeams.teamB.name);
+        const waitingStats = findStats(state.activeTeams.waiting.name);
+
         const teamsData: TeamWithPosition[] = [
           {
-            name: "Equipo 1" as Team,
+            name: state.activeTeams.teamA.name as Team,
             players: state.activeTeams.teamA.members.map((m) => m.id),
-            points: state.dailyScores[0].points,
-            wins: state.dailyScores[0].wins,
-            normalWins: state.dailyScores[0].normalWins,
-            draws: state.dailyScores[0].draws,
+            points: teamAStats.points,
+            wins: teamAStats.wins,
+            normalWins: teamAStats.normalWins,
+            draws: teamAStats.draws,
             position: 0,
           },
           {
-            name: "Equipo 2" as Team,
+            name: state.activeTeams.teamB.name as Team,
             players: state.activeTeams.teamB.members.map((m) => m.id),
-            points: state.dailyScores[1].points,
-            wins: state.dailyScores[1].wins,
-            normalWins: state.dailyScores[1].normalWins,
-            draws: state.dailyScores[1].draws,
+            points: teamBStats.points,
+            wins: teamBStats.wins,
+            normalWins: teamBStats.normalWins,
+            draws: teamBStats.draws,
             position: 0,
           },
           {
-            name: "Equipo 3" as Team,
+            name: state.activeTeams.waiting.name as Team,
             players: state.activeTeams.waiting.members.map((m) => m.id),
-            points: state.dailyScores[2].points,
-            wins: state.dailyScores[2].wins,
-            normalWins: state.dailyScores[2].normalWins,
-            draws: state.dailyScores[2].draws,
+            points: waitingStats.points,
+            wins: waitingStats.wins,
+            normalWins: waitingStats.normalWins,
+            draws: waitingStats.draws,
             position: 0,
           },
         ];
