@@ -3,6 +3,7 @@
 import { Player } from "@/types";
 import { useEffect, useState } from "react";
 import { useGameStore } from "@/store/gameStore";
+import { useSeasonStore } from "@/store/seasonStore";
 import { useRouter } from "next/navigation";
 import { toast, ToastContainer } from "react-toastify";
 import { api } from "@/lib/api";
@@ -224,6 +225,7 @@ export function TeamsBuilder() {
   const [draggedPlayer, setDraggedPlayer] = useState<Player | null>(null);
   const [mounted, setMounted] = useState(false);
   const { setTeams: setGlobalTeams, selectedPlayers } = useGameStore();
+  const { getSelectedSeasonId, isAllSeasonsMode } = useSeasonStore();
   const router = useRouter();
   const notify = (message: string) => toast(message);
 
@@ -263,7 +265,9 @@ export function TeamsBuilder() {
   const loadPlayerRatings = async () => {
     try {
       const playerIds = selectedPlayers.map(player => player.id);
-      const playerStats = await api.players.getPlayerStatsByIds(playerIds);
+      const seasonId = getSelectedSeasonId();
+      const allSeasons = isAllSeasonsMode();
+      const playerStats = await api.players.getPlayerStatsByIds(playerIds, seasonId, allSeasons);
 
       // Usar el servicio centralizado para calcular ratings V2
       const ratingsV2 = PlayerStatsService.calculatePlayersRatingsV2(playerStats);
@@ -474,7 +478,9 @@ export function TeamsBuilder() {
       
       // Obtener estadísticas de todos los jugadores
       const playerIds = allPlayers.map(player => player.id);
-      const playerStats = await api.players.getPlayerStatsByIds(playerIds);
+      const seasonId = getSelectedSeasonId();
+      const allSeasons = isAllSeasonsMode();
+      const playerStats = await api.players.getPlayerStatsByIds(playerIds, seasonId, allSeasons);
 
       // Calcular rating V2 para cada jugador usando el servicio centralizado
       const playersWithRating: (Player & { rating: number })[] = playerStats.map(player => ({

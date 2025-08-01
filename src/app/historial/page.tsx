@@ -2,14 +2,20 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { TriangularHistory } from "@/types";
 import { api } from "@/lib/api";
 import { getColorByTeam } from "@/lib/helpers/helpers";
+import { SeasonSelector } from "@/components/season/SeasonSelector";
+import { useSeasonStore } from "@/store/seasonStore";
 
 function HistorialContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const triangularId = searchParams.get('triangularId');
+  const urlSeasonId = searchParams.get('seasonId');
+  const urlAllSeasons = searchParams.get('allSeasons') === 'true';
+  const { getSelectedSeasonId, isAllSeasonsMode, setSelectedSeason, setAllSeasonsSelected, seasons } = useSeasonStore();
   
   const [triangularHistory, setTriangularHistory] = useState<
     TriangularHistory[]
@@ -19,32 +25,75 @@ function HistorialContent() {
   const [currentTriangularIndex, setCurrentTriangularIndex] = useState(0);
   const [highlightedTriangular, setHighlightedTriangular] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchTriangularHistory = async () => {
-      try {
-        setLoading(true);
-        const history = await api.triangular.getTriangularHistory();
-        setTriangularHistory(history);
-        setError(null);
-        
-        // Si hay un triangularId en la URL, buscar y mostrar ese triangular
-        if (triangularId) {
-          const triangularIndex = history.findIndex(t => t.id === triangularId);
-          if (triangularIndex !== -1) {
-            setCurrentTriangularIndex(triangularIndex);
-            setHighlightedTriangular(triangularId);
-          }
+  const fetchTriangularHistory = async () => {
+    try {
+      setLoading(true);
+      // Use URL params if available, otherwise fallback to store
+      const seasonId = urlSeasonId || getSelectedSeasonId();
+      const allSeasons = urlAllSeasons || isAllSeasonsMode();
+      const history = await api.triangular.getTriangularHistory(seasonId, allSeasons);
+      setTriangularHistory(history);
+      setError(null);
+      
+      // Si hay un triangularId en la URL, buscar y mostrar ese triangular
+      if (triangularId) {
+        const triangularIndex = history.findIndex(t => t.id === triangularId);
+        if (triangularIndex !== -1) {
+          setCurrentTriangularIndex(triangularIndex);
+          setHighlightedTriangular(triangularId);
         }
-      } catch (err) {
-        console.error("Error fetching triangular history:", err);
-        setError("Error al cargar el historial de triangulares");
-      } finally {
-        setLoading(false);
+      } else {
+        // Reset to first triangular when no specific ID is requested
+        setCurrentTriangularIndex(0);
       }
-    };
+    } catch (err) {
+      console.error("Error fetching triangular history:", err);
+      setError("Error al cargar el historial de triangulares");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // Initialize season filter from URL params
+  useEffect(() => {
+    if (urlAllSeasons) {
+      setAllSeasonsSelected(true);
+    } else if (urlSeasonId && seasons.length > 0) {
+      const season = seasons.find(s => s.id === urlSeasonId);
+      if (season) {
+        setSelectedSeason(season);
+      }
+    }
+  }, [urlSeasonId, urlAllSeasons, seasons, setSelectedSeason, setAllSeasonsSelected]);
+
+  useEffect(() => {
     fetchTriangularHistory();
-  }, [triangularId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [triangularId, urlSeasonId, urlAllSeasons]);
+
+  const handleSeasonChange = (seasonId: string | null, allSeasons: boolean) => {
+    // Update URL params
+    const url = new URL(window.location.href);
+    
+    if (allSeasons) {
+      url.searchParams.set('allSeasons', 'true');
+      url.searchParams.delete('seasonId');
+    } else if (seasonId) {
+      url.searchParams.set('seasonId', seasonId);
+      url.searchParams.delete('allSeasons');
+    } else {
+      url.searchParams.delete('seasonId');
+      url.searchParams.delete('allSeasons');
+    }
+    
+    // Keep triangularId if it exists
+    if (!triangularId) {
+      url.searchParams.delete('triangularId');
+    }
+    
+    router.push(url.pathname + url.search, { scroll: false });
+    fetchTriangularHistory();
+  };
 
   if (loading) {
     return (
@@ -131,6 +180,11 @@ function HistorialContent() {
             </button>
           </div>
         )}
+      </div>
+
+      {/* Season Selector */}
+      <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <SeasonSelector onSeasonChange={handleSeasonChange} className="max-w-md" />
       </div>
 
       {/* Navegación entre triangulares */}

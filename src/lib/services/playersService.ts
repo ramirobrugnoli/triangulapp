@@ -2,18 +2,40 @@ import { prisma } from "../prisma";
 import { PlayerStatsService } from "./playerStats";
 
 export class PlayersService {
-  static async getAllPlayers() {
+  static async getAllPlayers(seasonId?: string, allSeasons = false) {
     // Prueba la conexión antes de intentar consultar
     await prisma.$queryRaw`SELECT 1`;
 
-    // Obtener jugadores con sus triangulares y estadísticas de equipos
+    // Construir el filtro de triangulares basado en temporada
+    const triangularWhere = allSeasons 
+      ? {} 
+      : seasonId 
+        ? { seasonId } 
+        : { season: { finishSeasonDate: null } };
+
+    // Obtener jugadores con sus triangulares y estadísticas de equipos filtradas por temporada
     const players = await prisma.player.findMany({
       include: {
         triangulars: {
-          include: {
+          where: {
+            triangular: triangularWhere
+          },
+          select: {
+            team: true,
+            goals: true,
+            wins: true,
+            normalWins: true,
+            draws: true,
+            points: true,
             triangular: {
               include: {
                 teams: true,
+                season: {
+                  select: {
+                    id: true,
+                    name: true
+                  }
+                }
               },
             },
           },

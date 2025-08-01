@@ -9,6 +9,7 @@ export default function RedirectToFirstPlayer() {
 
   useEffect(() => {
     fetchStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

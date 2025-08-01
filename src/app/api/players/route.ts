@@ -2,11 +2,15 @@
 import { NextResponse } from "next/server";
 import { PlayersService } from "@/lib/services/playersService";
 
-export async function GET(): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   try {
     console.log("GET /api/players - Iniciando...");
 
-    const formattedPlayers = await PlayersService.getAllPlayers();
+    const { searchParams } = new URL(request.url);
+    const seasonId = searchParams.get('seasonId');
+    const allSeasons = searchParams.get('allSeasons') === 'true';
+
+    const formattedPlayers = await PlayersService.getAllPlayers(seasonId || undefined, allSeasons);
     
     console.log(`Encontrados ${formattedPlayers.length} jugadores`);
 

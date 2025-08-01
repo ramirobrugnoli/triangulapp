@@ -21,6 +21,11 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
+    // Obtener parámetros de URL para season filtering
+    const { searchParams } = new URL(request.url);
+    const seasonId = searchParams.get('seasonId');
+    const allSeasons = searchParams.get('allSeasons') === 'true';
+
     // Obtener los IDs de jugadores del body
     const body = await request.json();
     console.log("Body recibido:", body);
@@ -34,7 +39,14 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
-    // Obtener jugadores con estadísticas de triangulares
+    // Construir el filtro de triangulares basado en temporada
+    const triangularWhere = allSeasons 
+      ? {} 
+      : seasonId 
+        ? { seasonId } 
+        : { season: { finishSeasonDate: null } };
+
+    // Obtener jugadores con estadísticas de triangulares filtradas por temporada
     const players = await prisma.player.findMany({
       where: {
         id: {
@@ -43,10 +55,25 @@ export async function POST(request: Request): Promise<Response> {
       },
       include: {
         triangulars: {
-          include: {
+          where: {
+            triangular: triangularWhere
+          },
+          select: {
+            team: true,
+            goals: true,
+            wins: true,
+            normalWins: true,
+            draws: true,
+            points: true,
             triangular: {
               include: {
-                teams: true
+                teams: true,
+                season: {
+                  select: {
+                    id: true,
+                    name: true
+                  }
+                }
               }
             }
           }

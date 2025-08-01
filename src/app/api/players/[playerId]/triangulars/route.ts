@@ -2,20 +2,39 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ playerId: string }> }
 ) {
   try {
     const { playerId } = await params;
 
-    // Obtener todos los triangulares donde participó el jugador
+    // Obtener parámetros de URL para season filtering
+    const { searchParams } = new URL(request.url);
+    const seasonId = searchParams.get('seasonId');
+    const allSeasons = searchParams.get('allSeasons') === 'true';
+
+    // Construir el filtro de triangulares basado en temporada
+    const triangularWhere = allSeasons 
+      ? {} 
+      : seasonId 
+        ? { seasonId } 
+        : { season: { finishSeasonDate: null } };
+
+    // Obtener todos los triangulares donde participó el jugador filtrados por temporada
     const playerTriangulars = await prisma.playerTriangular.findMany({
       where: {
         playerId: playerId,
+        triangular: triangularWhere
       },
       include: {
         triangular: {
           include: {
+            season: {
+              select: {
+                id: true,
+                name: true
+              }
+            },
             teams: {
               orderBy: {
                 position: "asc",

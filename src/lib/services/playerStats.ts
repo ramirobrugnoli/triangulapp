@@ -28,12 +28,22 @@ export interface PlayerTriangularData {
     teams: TeamResult[];
   };
   team: string;
+  goals: number;
+  wins: number;
+  normalWins: number;
+  draws: number;
+  points: number;
 }
 
 export interface TriangularStatsResult {
   matches: number;
   matchesWon: number;
   matchesDraw: number;
+  goals: number;
+  wins: number;
+  normalWins: number;
+  draws: number;
+  points: number;
   triangularsPlayed: number;
   triangularWins: number;
   triangularSeconds: number;
@@ -250,6 +260,13 @@ export class PlayerStatsService {
    */
   static calculateTriangularStats(playerTriangulars: PlayerTriangularData[]): TriangularStatsResult {
     return playerTriangulars.reduce((acc, playerTriangular) => {
+      // Acumular estadísticas directas del PlayerTriangular
+      acc.goals += playerTriangular.goals;
+      acc.wins += playerTriangular.wins;
+      acc.normalWins += playerTriangular.normalWins;
+      acc.draws += playerTriangular.draws;
+      acc.points += playerTriangular.points;
+
       // Obtener la posición del equipo en este triangular
       const teamResult = playerTriangular.triangular.teams.find(
         team => team.teamName === playerTriangular.team
@@ -291,6 +308,11 @@ export class PlayerStatsService {
       matchesWon: 0,
       matchesLost: 0,
       matchesDraw: 0,
+      goals: 0,
+      wins: 0,
+      normalWins: 0,
+      draws: 0,
+      points: 0,
       triangularsPlayed: 0,
       triangularWins: 0,
       triangularSeconds: 0,
@@ -307,15 +329,18 @@ export class PlayerStatsService {
     player: PrismaPlayer,
     triangularStats: TriangularStatsResult
   ): PlayerStats {
+    // Calcular victorias totales (incluyendo victorias normales)
+    const totalWins = triangularStats.wins + triangularStats.normalWins;
+    
     return {
       matches: triangularStats.matches,
-      goals: player.goals,
-      wins: player.wins,
-      draws: player.draws,
+      goals: triangularStats.goals,
+      wins: totalWins,
+      draws: triangularStats.draws,
       losses: triangularStats.matches - triangularStats.matchesWon - triangularStats.matchesDraw,
-      points: player.wins * 3 + player.draws,
+      points: triangularStats.points,
       winPercentage: triangularStats.matches > 0
-        ? Math.round((player.wins / triangularStats.matches) * 100)
+        ? Math.round((totalWins / triangularStats.matches) * 100)
         : 0,
       triangularsPlayed: triangularStats.triangularsPlayed,
       triangularWins: triangularStats.triangularWins,
