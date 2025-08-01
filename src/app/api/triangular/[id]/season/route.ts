@@ -3,11 +3,11 @@ import { seasonService } from "@/lib/services/season";
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { seasonId } = await request.json();
-    const triangularId = params.id;
+    const { id: triangularId } = await params;
 
     if (!seasonId || typeof seasonId !== 'string') {
       return NextResponse.json(

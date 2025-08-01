@@ -54,6 +54,7 @@ const EstadisticasIndividualesPage = () => {
     if (players.length > 0) {
       loadPlayersWithCompleteStats(players);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [players]);
 
   useEffect(() => {
@@ -66,6 +67,7 @@ const EstadisticasIndividualesPage = () => {
         setSelectedPlayer(playersWithStats[0]);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playersWithStats, playerIdFromUrl, mounted]);
 
   const handlePlayerSelect = (player: Player) => {

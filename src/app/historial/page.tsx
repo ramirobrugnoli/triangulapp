@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { TriangularHistory } from "@/types";
 import { api } from "@/lib/api";
 import { getColorByTeam } from "@/lib/helpers/helpers";
@@ -11,8 +11,11 @@ import { useSeasonStore } from "@/store/seasonStore";
 
 function HistorialContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const triangularId = searchParams.get('triangularId');
-  const { getSelectedSeasonId, isAllSeasonsMode } = useSeasonStore();
+  const urlSeasonId = searchParams.get('seasonId');
+  const urlAllSeasons = searchParams.get('allSeasons') === 'true';
+  const { getSelectedSeasonId, isAllSeasonsMode, setSelectedSeason, setAllSeasonsSelected, seasons } = useSeasonStore();
   
   const [triangularHistory, setTriangularHistory] = useState<
     TriangularHistory[]
@@ -25,8 +28,9 @@ function HistorialContent() {
   const fetchTriangularHistory = async () => {
     try {
       setLoading(true);
-      const seasonId = getSelectedSeasonId();
-      const allSeasons = isAllSeasonsMode();
+      // Use URL params if available, otherwise fallback to store
+      const seasonId = urlSeasonId || getSelectedSeasonId();
+      const allSeasons = urlAllSeasons || isAllSeasonsMode();
       const history = await api.triangular.getTriangularHistory(seasonId, allSeasons);
       setTriangularHistory(history);
       setError(null);
@@ -50,11 +54,44 @@ function HistorialContent() {
     }
   };
 
+  // Initialize season filter from URL params
+  useEffect(() => {
+    if (urlAllSeasons) {
+      setAllSeasonsSelected(true);
+    } else if (urlSeasonId && seasons.length > 0) {
+      const season = seasons.find(s => s.id === urlSeasonId);
+      if (season) {
+        setSelectedSeason(season);
+      }
+    }
+  }, [urlSeasonId, urlAllSeasons, seasons, setSelectedSeason, setAllSeasonsSelected]);
+
   useEffect(() => {
     fetchTriangularHistory();
-  }, [triangularId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [triangularId, urlSeasonId, urlAllSeasons]);
 
-  const handleSeasonChange = () => {
+  const handleSeasonChange = (seasonId: string | null, allSeasons: boolean) => {
+    // Update URL params
+    const url = new URL(window.location.href);
+    
+    if (allSeasons) {
+      url.searchParams.set('allSeasons', 'true');
+      url.searchParams.delete('seasonId');
+    } else if (seasonId) {
+      url.searchParams.set('seasonId', seasonId);
+      url.searchParams.delete('allSeasons');
+    } else {
+      url.searchParams.delete('seasonId');
+      url.searchParams.delete('allSeasons');
+    }
+    
+    // Keep triangularId if it exists
+    if (!triangularId) {
+      url.searchParams.delete('triangularId');
+    }
+    
+    router.push(url.pathname + url.search, { scroll: false });
     fetchTriangularHistory();
   };
 
