@@ -20,7 +20,7 @@ interface GameStore extends GameState {
   rotateTeams: (winner: "A" | "B" | "draw") => void;
 
   // Funciones de puntajes diarios
-  updateDailyScore: (team: Team, type: "win" | "draw") => void;
+  updateDailyScore: (team: Team, type: "win" | "normalWin" | "draw") => void;
   getTeamStats: (teamName: Team) => TeamScore | undefined;
 
   // Funciones de control de juego
@@ -245,8 +245,8 @@ export const useGameStore = create<GameStore>()(
       // Funciones de puntajes diarios
       updateDailyScore: (team, type) =>
         set((state) => {
-          const pointsToAdd = type === "win" ? 3 : 1;
-          const statToUpdate = type === "win" ? "wins" : "draws";
+          const pointsToAdd = type === "win" ? 3 : type === "normalWin" ? 2 : 1;
+          const statToUpdate = type === "win" ? "wins" : type === "normalWin" ? "normalWins" : "draws";
 
           return {
             ...state,
@@ -1000,9 +1000,15 @@ export const useGameStore = create<GameStore>()(
         
         // Procesar resultado del partido
         if (result === "A") {
-          get().updateDailyScore(activeTeams.teamA.name, "win");
+          // Determinar tipo de victoria basado en la puntuación del ganador
+          const winnerScore = state.scores.teamA;
+          const resultType = winnerScore === 2 ? "win" : "normalWin";
+          get().updateDailyScore(activeTeams.teamA.name, resultType);
         } else if (result === "B") {
-          get().updateDailyScore(activeTeams.teamB.name, "win");
+          // Determinar tipo de victoria basado en la puntuación del ganador
+          const winnerScore = state.scores.teamB;
+          const resultType = winnerScore === 2 ? "win" : "normalWin";
+          get().updateDailyScore(activeTeams.teamB.name, resultType);
         } else {
           get().updateDailyScore(activeTeams.teamA.name, "draw");
           get().updateDailyScore(activeTeams.teamB.name, "draw");

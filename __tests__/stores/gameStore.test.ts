@@ -838,7 +838,7 @@ describe('gameStore', () => {
       });
     });
 
-    it('should give 2 points for 2-1 victory (normalWin)', () => {
+    it('should give 3 points for 2-1 victory (win)', () => {
       const store = useGameStore.getState();
       store.updateScore('A', 2);
       store.updateScore('B', 1);
@@ -849,9 +849,9 @@ describe('gameStore', () => {
       
       const state = useGameStore.getState();
       const teamAStats = state.dailyScores.find(s => s.name === "Equipo 1");
-      expect(teamAStats?.points).toBe(2); // normalWin = 2 points
-      expect(teamAStats?.normalWins).toBe(1);
-      expect(teamAStats?.wins).toBe(0);
+      expect(teamAStats?.points).toBe(3); // win = 3 points (winner has 2 goals)
+      expect(teamAStats?.wins).toBe(1);
+      expect(teamAStats?.normalWins).toBe(0);
     });
 
     it('should give 3 points for 2-0 victory (win)', () => {

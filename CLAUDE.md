@@ -33,6 +33,8 @@ npm run lint         # Run ESLint
 npm test                    # Run all tests
 npm run test:watch          # Run tests in watch mode
 npm run test:coverage       # Run tests with coverage report
+npm run test:coverage:watch # Run tests with coverage in watch mode
+npm run test:ci             # Run tests for CI (no watch, with coverage)
 npm run test:unit           # Run unit tests only
 npm run test:integration    # Run integration tests only
 npm run test:components     # Run component tests only
@@ -40,6 +42,7 @@ npm run test:api           # Run API tests only
 npm run test:services      # Run service tests only
 npm run test:stores        # Run store tests only
 npm run test:hooks         # Run hook tests only
+npm run test:clear-cache    # Clear Jest cache
 ```
 
 ## Architecture Overview
@@ -163,3 +166,21 @@ import { SeasonSelector } from "@/components/season/SeasonSelector";
 - Added `Season` model with foreign key relationship to `Triangular`
 - Migration safely handles existing data by creating "Season 1" and assigning all triangulars
 - Maintains data integrity with proper indexing on `seasonId`
+
+## Key Technical Details
+
+### Scoring System
+- **Normal Wins**: Worth 2 points (historical system)
+- **Victory Points**: Championship wins worth 3 points (new system from recent update)
+- **Draws**: Worth 1 point each
+- Separate tracking for `wins` (total wins) vs `normalWins` (non-championship wins)
+
+### Database Seeding
+```bash
+npx prisma db seed    # Seed database with initial data using prisma/seed.ts
+```
+
+### Production Deployment
+- Uses custom Node.js server (`server.js`) instead of Next.js standalone
+- Environment variable `NODE_ENV=production` triggers production mode
+- PostgreSQL database connection via `DATABASE_URL` environment variable
