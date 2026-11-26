@@ -117,4 +117,40 @@ describe("TeamsBuilder: búsqueda y selección múltiple", () => {
     expect(screen.queryByText("(1/5)")).not.toBeInTheDocument();
     expect(screen.getAllByText("(0/5)")).toHaveLength(3);
   });
+
+  it("intercambia dos jugadores de equipos distintos", () => {
+    render(<TeamsBuilder />);
+
+    fireEvent.click(screen.getByText("Rama"));
+    fireEvent.click(teamMoveButtons()[0]);
+    fireEvent.click(screen.getByText("Pasko"));
+    fireEvent.click(teamMoveButtons()[1]);
+
+    fireEvent.click(screen.getByText("Rama"));
+    fireEvent.click(screen.getByText("Pasko"));
+    fireEvent.click(screen.getByText("⇄ Intercambiar"));
+
+    const amarillo = screen.getByRole("region", { name: "Amarillo" });
+    const rosa = screen.getByRole("region", { name: "Rosa" });
+    expect(within(amarillo).getByText("Pasko")).toBeInTheDocument();
+    expect(within(rosa).getByText("Rama")).toBeInTheDocument();
+  });
+
+  it("ubica a los seleccionados tocando un lugar vacío del equipo", () => {
+    render(<TeamsBuilder />);
+
+    fireEvent.click(screen.getByText("Rama"));
+    const negro = screen.getByRole("region", { name: "Negro" });
+    fireEvent.click(within(negro).getAllByRole("button", { name: "Agregar aquí" })[0]);
+
+    expect(within(negro).getByText("Rama")).toBeInTheDocument();
+    expect(within(negro).getByText("(1/5)")).toBeInTheDocument();
+  });
+
+  it("no usa arrastre ni círculos", () => {
+    const { container } = render(<TeamsBuilder />);
+
+    expect(container.querySelector(".rounded-full.w-20")).toBeNull();
+    expect(container.querySelector("[aria-roledescription='draggable']")).toBeNull();
+  });
 });
