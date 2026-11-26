@@ -117,7 +117,15 @@ describe('GameTimer', () => {
     expect(compact).toHaveClass('-translate-y-full', 'opacity-0');
     expect(compact).toHaveAttribute('inert');
 
-    jest.spyOn(timer, 'getBoundingClientRect').mockReturnValue({ top: -20 } as DOMRect);
+    // Empezó a salir pero todavía se ve casi todo: la barra no entra
+    jest.spyOn(timer, 'getBoundingClientRect').mockReturnValue({ top: -20, bottom: 200 } as DOMRect);
+    act(() => {
+      window.dispatchEvent(new Event('scroll'));
+    });
+    expect(compact).toHaveAttribute('data-visible', 'false');
+
+    // Queda menos visible que el alto de la barra: entra y lo tapa
+    jest.spyOn(timer, 'getBoundingClientRect').mockReturnValue({ top: -180, bottom: 40 } as DOMRect);
     act(() => {
       window.dispatchEvent(new Event('scroll'));
     });
@@ -130,7 +138,7 @@ describe('GameTimer', () => {
     fireEvent.click(within(compact).getByTitle('Continuar'));
     expect(mockToggleTimer).toHaveBeenCalled();
 
-    jest.spyOn(timer, 'getBoundingClientRect').mockReturnValue({ top: 120 } as DOMRect);
+    jest.spyOn(timer, 'getBoundingClientRect').mockReturnValue({ top: 120, bottom: 340 } as DOMRect);
     act(() => {
       window.dispatchEvent(new Event('scroll'));
     });

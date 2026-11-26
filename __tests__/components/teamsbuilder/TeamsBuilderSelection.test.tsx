@@ -153,4 +153,35 @@ describe("TeamsBuilder: búsqueda y selección múltiple", () => {
     expect(container.querySelector(".rounded-full.w-20")).toBeNull();
     expect(container.querySelector("[aria-roledescription='draggable']")).toBeNull();
   });
+
+  it("no borra la selección si todos los seleccionados ya están en ese equipo", () => {
+    render(<TeamsBuilder />);
+
+    fireEvent.click(screen.getByText("Rama"));
+    fireEvent.click(teamMoveButtons()[0]);
+    fireEvent.click(screen.getByText("Rama"));
+
+    // Amarillo ya tiene a Rama: su botón queda desactivado y la selección sigue
+    expect(teamMoveButtons()[0]).toBeDisabled();
+    fireEvent.click(teamMoveButtons()[0]);
+    expect(screen.getByText("1 seleccionado")).toBeInTheDocument();
+    expect(screen.getByText("Rama").closest("button")).toHaveAttribute("aria-pressed", "true");
+    expect(toast.warning).not.toHaveBeenCalled();
+  });
+
+  it("deja volver a sortear con Random cuando ya no quedan disponibles", () => {
+    render(<TeamsBuilder />);
+
+    fireEvent.click(screen.getByText("🎲 Random"));
+    expect(screen.queryByText(/Jugadores Disponibles/)).not.toBeInTheDocument();
+
+    expect(screen.getByText("🎲 Random")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("🎲 Random"));
+    const asignados = ["Amarillo", "Rosa", "Negro"].reduce(
+      (total, name) =>
+        total + within(screen.getByRole("region", { name })).getAllByRole("button", { pressed: false }).length,
+      0
+    );
+    expect(asignados).toBe(players.length);
+  });
 });

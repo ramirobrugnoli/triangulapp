@@ -16,6 +16,7 @@ interface PlayerSelectorProps {
 export function PlayerSelector({ refreshKey = 0 }: PlayerSelectorProps = {}) {
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const [search, setSearch] = useState("");
+  const [loadError, setLoadError] = useState(false);
   const [selectedPlayers, setSelectedPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -39,8 +40,10 @@ export function PlayerSelector({ refreshKey = 0 }: PlayerSelectorProps = {}) {
       try {
         const players = await playerService.getSimplePlayers();
         setAllPlayers(players); // Ya vienen ordenados por nombre desde el endpoint
+        setLoadError(false);
       } catch (error) {
         console.error("Error:", error);
+        setLoadError(true);
         // Usar toast directamente para evitar problemas de render
         setTimeout(() => {
           toast.error("Error al cargar los jugadores", {
@@ -184,9 +187,11 @@ export function PlayerSelector({ refreshKey = 0 }: PlayerSelectorProps = {}) {
 
           {filteredPlayers.length === 0 && (
             <p className="text-center text-sm text-gray-400 py-4">
-              {search
-                ? <>Ningún jugador coincide con &quot;{search}&quot;</>
-                : "No hay jugadores registrados"}
+              {loadError && allPlayers.length === 0
+                ? "No se pudieron cargar los jugadores. Recargá la página para reintentar."
+                : search
+                  ? <>Ningún jugador coincide con &quot;{search}&quot;</>
+                  : "No hay jugadores registrados"}
             </p>
           )}
 

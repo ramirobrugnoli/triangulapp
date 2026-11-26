@@ -5,6 +5,9 @@ import { useGameStore } from '@/store/gameStore';
 import { ResetIcon, PauseIcon, PlayIcon } from '@/components/ui/icons';
 import TimerDisplay from '@/components/ui/TimerDisplay';
 
+// Alto aproximado de la barra compacta (px)
+const COMPACT_BAR_HEIGHT = 64;
+
 export function GameTimer() {
   const {
     timer,
@@ -12,8 +15,8 @@ export function GameTimer() {
     resetTimer
   } = useGameStore();
 
-  // El timer grande queda en su lugar. Cuando empieza a salir por arriba de la
-  // pantalla aparece una barra compacta fija. Al ser `fixed` no cambia la altura
+  // El timer grande queda en su lugar. Cuando lo que queda visible de él es menos
+  // que el alto de la barra compacta, aparece la barra fija y lo tapa. Al ser `fixed` no cambia la altura
   // de la página, así que el scroll no salta.
   const fullTimerRef = useRef<HTMLDivElement>(null);
   const [showCompact, setShowCompact] = useState(false);
@@ -22,7 +25,8 @@ export function GameTimer() {
     const update = () => {
       const el = fullTimerRef.current;
       if (!el) return;
-      setShowCompact(el.getBoundingClientRect().top < 0);
+      const rect = el.getBoundingClientRect();
+      setShowCompact(rect.top < 0 && rect.bottom <= COMPACT_BAR_HEIGHT);
     };
     update();
     window.addEventListener('scroll', update, { passive: true });

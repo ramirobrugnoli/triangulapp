@@ -92,21 +92,20 @@ function TeamCard({
   teamId,
   players,
   rating,
-  selectedCount,
+  canReceive,
   onMoveHere,
   children,
 }: {
   teamId: TeamId;
   players: Player[];
   rating: number;
-  selectedCount: number;
+  canReceive: boolean;
   onMoveHere: () => void;
   children: React.ReactNode;
 }) {
   const accent = TEAM_ACCENTS[teamId];
   const isFull = players.length >= TEAM_SIZE;
   const emptySlots = Math.max(TEAM_SIZE - players.length, 0);
-  const canReceive = selectedCount > 0 && !isFull;
 
   return (
     <section
@@ -273,9 +272,11 @@ export function TeamsBuilder() {
       target === "available" ? toMove.length : Math.max(TEAM_SIZE - teams[target].length, 0);
     const moving = toMove.slice(0, freeSlots);
 
+    // Todos los seleccionados ya están ahí: no se mueve nada y la selección queda
+    if (toMove.length === 0) return;
+
     if (moving.length === 0) {
-      if (toMove.length > 0) toast.warning(`El equipo ya tiene ${TEAM_SIZE} jugadores`);
-      clearSelection();
+      toast.warning(`El equipo ya tiene ${TEAM_SIZE} jugadores`);
       return;
     }
 
@@ -300,6 +301,11 @@ export function TeamsBuilder() {
     }
     setSearch("");
   };
+
+  // Un destino sirve si hay cupo y al menos un seleccionado no está ya ahí
+  const canMoveTo = (target: TeamId) =>
+    teams[target].length < TEAM_SIZE &&
+    selectedIds.some((id) => findPlayerTeam(id) !== target);
 
   const filteredAvailable = useMemo(() => {
     const query = normalize(search);
@@ -561,19 +567,10 @@ export function TeamsBuilder() {
       <div className="space-y-6">
         {teams.available.length > 0 && (
           <section className="bg-gray-900 rounded-lg p-4 space-y-3">
-            <div className="flex justify-between items-center gap-3">
-              <h3 className="text-lg font-bold">
-                Jugadores Disponibles{" "}
-                <span className="text-sm font-normal text-gray-400">({teams.available.length})</span>
-              </h3>
-              <button
-                onClick={handleRandomTeams}
-                className="text-xs px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg"
-                title="Armar equipos aleatorios"
-              >
-                🎲 Random
-              </button>
-            </div>
+            <h3 className="text-lg font-bold">
+              Jugadores Disponibles{" "}
+              <span className="text-sm font-normal text-gray-400">({teams.available.length})</span>
+            </h3>
 
             <div className="flex gap-2">
               <div className="relative flex-1">
@@ -638,7 +635,7 @@ export function TeamsBuilder() {
               teamId={teamId}
               players={teams[teamId]}
               rating={calculateTeamRating(teams[teamId])}
-              selectedCount={selectedIds.length}
+              canReceive={canMoveTo(teamId)}
               onMoveHere={() => moveSelectedTo(teamId)}
             >
               {teams[teamId].map((player) => (
@@ -674,17 +671,17 @@ export function TeamsBuilder() {
             </div>
             <div className="grid grid-cols-3 gap-2">
               {TEAM_IDS.map((teamId) => {
-                const full = teams[teamId].length >= TEAM_SIZE;
+                const enabled = canMoveTo(teamId);
                 return (
                   <button
                     key={teamId}
                     type="button"
                     onClick={() => moveSelectedTo(teamId)}
-                    disabled={full}
+                    disabled={!enabled}
                     className={`py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 ${
-                      full
-                        ? "bg-gray-800 text-gray-500 cursor-not-allowed"
-                        : "bg-blue-600 hover:bg-blue-700"
+                      enabled
+                        ? "bg-blue-600 hover:bg-blue-700"
+                        : "bg-gray-800 text-gray-500 cursor-not-allowed"
                     }`}
                   >
                     <span className={`w-2 h-2 rounded-full ${TEAM_ACCENTS[teamId].dot}`} />→{" "}
@@ -720,12 +717,22 @@ export function TeamsBuilder() {
           </div>
         )}
 
-        <button
-          onClick={handleSuggestTeamsByStats}
-          className="w-full py-3 rounded-lg font-bold bg-blue-600 hover:bg-blue-700"
-        >
-          🎯 Balancear con IA
-        </button>
+        {/* Fuera de "disponibles" para poder volver a sortear con todos asignados */}
+        <div className="grid grid-cols-[auto_1fr] gap-2">
+          <button
+            onClick={handleRandomTeams}
+            className="px-4 py-3 rounded-lg font-bold bg-gray-700 hover:bg-gray-600"
+            title="Armar equipos aleatorios"
+          >
+            🎲 Random
+          </button>
+          <button
+            onClick={handleSuggestTeamsByStats}
+            className="w-full py-3 rounded-lg font-bold bg-blue-600 hover:bg-blue-700"
+          >
+            🎯 Balancear con IA
+          </button>
+        </div>
         <button
           onClick={handleConfirmTeams}
           disabled={isSubmitting}

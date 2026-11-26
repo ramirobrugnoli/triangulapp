@@ -335,4 +335,14 @@ describe('PlayerSelector', () => {
     expect(mockPlayerService.getSimplePlayers).toHaveBeenCalledTimes(2);
     expect(screen.getByText('Seleccionar Jugadores (1/15)')).toBeInTheDocument();
   });
+
+  it('shows a load error instead of "no players" when the request fails', async () => {
+    mockPlayerService.getSimplePlayers.mockRejectedValue(new Error('down'));
+    render(<PlayerSelector />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/No se pudieron cargar los jugadores/)).toBeInTheDocument()
+    );
+    expect(screen.queryByText('No hay jugadores registrados')).not.toBeInTheDocument();
+  });
 });
