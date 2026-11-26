@@ -1,14 +1,22 @@
 "use client";
 
 import { Player } from "@/types";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { playerService } from "@/lib/api";
 import { useGameStore } from "@/store/gameStore";
 import { useRouter } from "next/navigation";
 import { toast, ToastContainer } from "react-toastify";
+import { normalizeText } from "@/lib/helpers/helpers";
 
-export function PlayerSelector() {
+interface PlayerSelectorProps {
+  // Cambiarlo vuelve a pedir la lista (por ejemplo, después de crear un jugador)
+  refreshKey?: number;
+}
+
+export function PlayerSelector({ refreshKey = 0 }: PlayerSelectorProps = {}) {
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
+  const [search, setSearch] = useState("");
+  const [loadError, setLoadError] = useState(false);
   const [selectedPlayers, setSelectedPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -32,8 +40,10 @@ export function PlayerSelector() {
       try {
         const players = await playerService.getSimplePlayers();
         setAllPlayers(players); // Ya vienen ordenados por nombre desde el endpoint
+        setLoadError(false);
       } catch (error) {
         console.error("Error:", error);
+        setLoadError(true);
         // Usar toast directamente para evitar problemas de render
         setTimeout(() => {
           toast.error("Error al cargar los jugadores", {
@@ -47,7 +57,13 @@ export function PlayerSelector() {
     };
 
     fetchPlayers();
-  }, [isMounted]);
+  }, [isMounted, refreshKey]);
+
+  const filteredPlayers = useMemo(() => {
+    const query = normalizeText(search);
+    if (!query) return allPlayers;
+    return allPlayers.filter((player) => normalizeText(player.name).includes(query));
+  }, [allPlayers, search]);
 
   const handlePlayerToggle = useCallback((player: Player) => {
     setSelectedPlayers(prev => {
@@ -148,8 +164,39 @@ export function PlayerSelector() {
             </h2>
           </div>
 
+          <div className="relative mb-4">
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar jugador..."
+              aria-label="Buscar jugador"
+              className="w-full rounded-lg bg-gray-800 border border-gray-600 px-3 py-2 pr-8 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                aria-label="Limpiar búsqueda"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {filteredPlayers.length === 0 && (
+            <p className="text-center text-sm text-gray-400 py-4">
+              {loadError && allPlayers.length === 0
+                ? "No se pudieron cargar los jugadores. Recargá la página para reintentar."
+                : search
+                  ? <>Ningún jugador coincide con &quot;{search}&quot;</>
+                  : "No hay jugadores registrados"}
+            </p>
+          )}
+
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-            {allPlayers.map((player) => {
+            {filteredPlayers.map((player) => {
               const isSelected = selectedPlayers.some((p) => p.id === player.id);
               return (
                 <button

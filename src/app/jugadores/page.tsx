@@ -9,6 +9,12 @@ export default function PlayersPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectorRefreshKey, setSelectorRefreshKey] = useState(0);
+
+  const handlePlayerAdded = () => {
+    fetchPlayers();
+    setSelectorRefreshKey((key) => key + 1);
+  };
 
   const fetchPlayers = async () => {
     try {
@@ -39,7 +45,7 @@ export default function PlayersPage() {
         <h1 className="text-2xl font-bold mb-6 text-center">
           Seleccionar Jugadores
         </h1>
-        <PlayerSelector />
+        <PlayerSelector refreshKey={selectorRefreshKey} />
       </div>
       <h1 className="text-2xl font-bold mb-6">Gestión de Jugadores</h1>
 
@@ -91,7 +97,7 @@ export default function PlayersPage() {
         </div>
 
         <div>
-          <CreatePlayer onPlayerAdded={fetchPlayers} />
+          <CreatePlayer onPlayerAdded={handlePlayerAdded} />
         </div>
       </div>
     </div>

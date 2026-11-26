@@ -10,3 +10,7 @@ export const getColorByTeam = (team: "Equipo 1" | "Equipo 2" | "Equipo 3") => {
       return "";
   }
 };
+
+// Normaliza texto para búsquedas: sin mayúsculas, tildes ni espacios en los bordes
+export const normalizeText = (value: string) =>
+  value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { GameTimer } from '@/components/game/GameTimer';
 import { useGameStore } from '@/store/gameStore';
 
@@ -35,14 +35,14 @@ describe('GameTimer', () => {
   it('renders correctly with initial state', () => {
     render(<GameTimer />);
     
-    expect(screen.getByTitle('Reiniciar tiempo')).toBeInTheDocument();
-    expect(screen.getByTitle('Continuar')).toBeInTheDocument();
+    expect(within(screen.getByTestId('game-timer')).getByTitle('Reiniciar tiempo')).toBeInTheDocument();
+    expect(within(screen.getByTestId('game-timer')).getByTitle('Continuar')).toBeInTheDocument();
   });
 
   it('calls toggleTimer when play/pause button is clicked', () => {
     render(<GameTimer />);
     
-    const toggleButton = screen.getByTitle('Continuar');
+    const toggleButton = within(screen.getByTestId('game-timer')).getByTitle('Continuar');
     fireEvent.click(toggleButton);
     
     expect(mockToggleTimer).toHaveBeenCalled();
@@ -51,7 +51,7 @@ describe('GameTimer', () => {
   it('calls resetTimer when reset button is clicked', () => {
     render(<GameTimer />);
     
-    const resetButton = screen.getByTitle('Reiniciar tiempo');
+    const resetButton = within(screen.getByTestId('game-timer')).getByTitle('Reiniciar tiempo');
     fireEvent.click(resetButton);
     
     expect(mockResetTimer).toHaveBeenCalled();
@@ -68,13 +68,13 @@ describe('GameTimer', () => {
 
     render(<GameTimer />);
     
-    expect(screen.getByTitle('Pausar')).toBeInTheDocument();
+    expect(within(screen.getByTestId('game-timer')).getByTitle('Pausar')).toBeInTheDocument();
   });
 
   it('shows play icon when timer is not running', () => {
     render(<GameTimer />);
     
-    expect(screen.getByTitle('Continuar')).toBeInTheDocument();
+    expect(within(screen.getByTestId('game-timer')).getByTitle('Continuar')).toBeInTheDocument();
   });
 
   it('disables toggle button when time is 0', () => {
@@ -88,7 +88,7 @@ describe('GameTimer', () => {
 
     render(<GameTimer />);
     
-    const toggleButton = screen.getByTitle('Continuar');
+    const toggleButton = within(screen.getByTestId('game-timer')).getByTitle('Continuar');
     expect(toggleButton).toBeDisabled();
   });
 
@@ -103,6 +103,45 @@ describe('GameTimer', () => {
 
     render(<GameTimer />);
     
-    expect(screen.getByText('02:05')).toBeInTheDocument();
+    expect(within(screen.getByTestId('game-timer')).getByText('02:05')).toBeInTheDocument();
   });
-}); 
+
+  it('slides in a fixed compact bar once the timer scrolls off the top, without moving the page', () => {
+    render(<GameTimer />);
+    const timer = screen.getByTestId('game-timer');
+    const compact = screen.getByTestId('game-timer-compact');
+    const timerClasses = timer.className;
+
+    // Oculta: fuera de pantalla e inerte
+    expect(compact).toHaveAttribute('data-visible', 'false');
+    expect(compact).toHaveClass('-translate-y-full', 'opacity-0');
+    expect(compact).toHaveAttribute('inert');
+
+    // Empezó a salir pero todavía se ve casi todo: la barra no entra
+    jest.spyOn(timer, 'getBoundingClientRect').mockReturnValue({ top: -20, bottom: 200 } as DOMRect);
+    act(() => {
+      window.dispatchEvent(new Event('scroll'));
+    });
+    expect(compact).toHaveAttribute('data-visible', 'false');
+
+    // Queda menos visible que el alto de la barra: entra y lo tapa
+    jest.spyOn(timer, 'getBoundingClientRect').mockReturnValue({ top: -180, bottom: 40 } as DOMRect);
+    act(() => {
+      window.dispatchEvent(new Event('scroll'));
+    });
+
+    expect(compact).toHaveAttribute('data-visible', 'true');
+    expect(compact).toHaveClass('fixed', 'top-0', 'translate-y-0', 'opacity-100');
+    expect(compact).not.toHaveAttribute('inert');
+    // El timer grande no cambia: la página no se acorta al compactar
+    expect(timer.className).toBe(timerClasses);
+    fireEvent.click(within(compact).getByTitle('Continuar'));
+    expect(mockToggleTimer).toHaveBeenCalled();
+
+    jest.spyOn(timer, 'getBoundingClientRect').mockReturnValue({ top: 120, bottom: 340 } as DOMRect);
+    act(() => {
+      window.dispatchEvent(new Event('scroll'));
+    });
+    expect(compact).toHaveAttribute('data-visible', 'false');
+  });
+});

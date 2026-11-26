@@ -291,4 +291,58 @@ describe('PlayerSelector', () => {
       expect(player1Button).toHaveClass('bg-green-600');
     });
   });
-}); 
+
+  it('filters players by name ignoring case and accents', async () => {
+    mockPlayerService.getSimplePlayers.mockResolvedValue([
+      ...mockPlayers,
+      { id: '8', name: 'Ángel', stats: mockStats },
+    ]);
+    render(<PlayerSelector />);
+    await waitFor(() => expect(screen.getByText('Ángel')).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText('Buscar jugador'), { target: { value: 'ANGEL' } });
+
+    expect(screen.getByText('Ángel')).toBeInTheDocument();
+    expect(screen.queryByText('Player 1')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Buscar jugador'), { target: { value: 'zzz' } });
+    expect(screen.getByText(/Ningún jugador coincide/)).toBeInTheDocument();
+  });
+
+  it('keeps selected players when the search hides them', async () => {
+    render(<PlayerSelector />);
+    await waitFor(() => expect(screen.getByText('Player 1')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('Player 1'));
+    fireEvent.change(screen.getByLabelText('Buscar jugador'), { target: { value: 'Player 2' } });
+
+    expect(screen.getByText('Seleccionar Jugadores (1/15)')).toBeInTheDocument();
+    expect(screen.getByText('Jugadores Seleccionados (1)')).toBeInTheDocument();
+  });
+
+  it('reloads the list when refreshKey changes, keeping the selection', async () => {
+    const { rerender } = render(<PlayerSelector refreshKey={0} />);
+    await waitFor(() => expect(screen.getByText('Player 1')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Player 1'));
+
+    mockPlayerService.getSimplePlayers.mockResolvedValue([
+      ...mockPlayers,
+      { id: '9', name: 'Nuevo', stats: mockStats },
+    ]);
+    rerender(<PlayerSelector refreshKey={1} />);
+
+    await waitFor(() => expect(screen.getByText('Nuevo')).toBeInTheDocument());
+    expect(mockPlayerService.getSimplePlayers).toHaveBeenCalledTimes(2);
+    expect(screen.getByText('Seleccionar Jugadores (1/15)')).toBeInTheDocument();
+  });
+
+  it('shows a load error instead of "no players" when the request fails', async () => {
+    mockPlayerService.getSimplePlayers.mockRejectedValue(new Error('down'));
+    render(<PlayerSelector />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/No se pudieron cargar los jugadores/)).toBeInTheDocument()
+    );
+    expect(screen.queryByText('No hay jugadores registrados')).not.toBeInTheDocument();
+  });
+});
