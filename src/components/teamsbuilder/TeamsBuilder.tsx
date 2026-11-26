@@ -22,14 +22,10 @@ import {
 } from "@dnd-kit/core";
 import { PlayerStatsService } from "@/lib/services/playerStats";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { getColorByTeam } from "@/lib/helpers/helpers";
+import { getColorByTeam, normalizeText as normalize } from "@/lib/helpers/helpers";
 
 const TEAM_SIZE = 5;
 const TEAM_IDS = ["team1", "team2", "team3"] as const;
-
-// Normaliza para buscar sin importar mayúsculas ni tildes
-const normalize = (value: string) =>
-  value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
 interface TeamBuilderState {
   available: Player[];
