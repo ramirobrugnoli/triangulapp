@@ -1,7 +1,7 @@
 "use client";
 
 import { Player } from "@/types";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useGameStore } from "@/store/gameStore";
 import { useSeasonStore } from "@/store/seasonStore";
 import { useRouter } from "next/navigation";
@@ -23,6 +23,13 @@ import {
 import { PlayerStatsService } from "@/lib/services/playerStats";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { getColorByTeam } from "@/lib/helpers/helpers";
+
+const TEAM_SIZE = 5;
+const TEAM_IDS = ["team1", "team2", "team3"] as const;
+
+// Normaliza para buscar sin importar mayúsculas ni tildes
+const normalize = (value: string) =>
+  value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
 interface TeamBuilderState {
   available: Player[];
@@ -55,9 +62,11 @@ function AvailablePlayersDropZone({ children }: { children: React.ReactNode }) {
 function DraggablePlayerCircle({
   player,
   isSelected,
+  onToggle,
 }: {
   player: Player;
   isSelected: boolean;
+  onToggle: (player: Player) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: player.id,
@@ -76,13 +85,16 @@ function DraggablePlayerCircle({
       style={style}
       {...listeners}
       {...attributes}
+      type="button"
+      aria-pressed={isSelected}
+      onClick={() => onToggle(player)}
       className={`
         w-20 h-20 rounded-full text-xs font-bold transition-all flex items-center justify-center px-2
         ${isDragging ? "opacity-50 z-50" : ""}
-        ${isSelected ? "bg-green-600" : "bg-gray-700 hover:bg-gray-600"}
+        ${isSelected ? "bg-green-600 border-white" : "bg-gray-700 hover:bg-gray-600 border-gray-500"}
         cursor-grab active:cursor-grabbing
         touch-none select-none
-        border-2 border-gray-500
+        border-2
       `}
     >
       <span className="text-center leading-tight text-white break-words max-w-full">
@@ -97,12 +109,14 @@ function DraggablePlayer({
   player,
   isSelected,
   draggedPlayer,
-  findPlayerTeam
+  findPlayerTeam,
+  onToggle,
 }: {
   player: Player;
   isSelected: boolean;
   draggedPlayer: Player | null;
   findPlayerTeam: (playerId: string) => string;
+  onToggle: (player: Player) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: player.id,
@@ -137,6 +151,9 @@ function DraggablePlayer({
       style={style}
       {...listeners}
       {...attributes}
+      type="button"
+      aria-pressed={isSelected}
+      onClick={() => onToggle(player)}
       className={`
         w-full p-3 rounded-lg text-sm transition-all h-[45px] flex items-center justify-center
         ${isDragging ? "opacity-50 z-50" : ""}
@@ -159,7 +176,9 @@ function DroppableTeam({
   title,
   playerCount,
   rating,
-  isOverflow
+  isOverflow,
+  selectedCount,
+  onMoveHere,
 }: {
   id: string;
   children: React.ReactNode;
@@ -167,6 +186,8 @@ function DroppableTeam({
   playerCount: number;
   rating: number;
   isOverflow: boolean;
+  selectedCount: number;
+  onMoveHere: () => void;
 }) {
   const { isOver, setNodeRef } = useDroppable({
     id,
@@ -184,9 +205,18 @@ function DroppableTeam({
       <div className="flex flex-col justify-between items-center mb-4">
         <h3 className="text-lg font-bold">{title}</h3>
         <div className={`text-sm ${isOverflow ? "text-red-400" : "text-gray-400"}`}>
-          ({playerCount}/5)
+          ({playerCount}/{TEAM_SIZE})
         </div>
       </div>
+      {selectedCount > 0 && playerCount < TEAM_SIZE && (
+        <button
+          type="button"
+          onClick={onMoveHere}
+          className="w-full mb-3 py-2 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700"
+        >
+          + Agregar aquí
+        </button>
+      )}
       <div className="space-y-2 mb-3">
         {children}
       </div>
@@ -218,7 +248,8 @@ export function TeamsBuilder() {
     team2: [],
     team3: [],
   });
-  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [playerRatings, setPlayerRatings] = useState<{ [playerId: string]: number }>({});
@@ -346,7 +377,7 @@ export function TeamsBuilder() {
           return newTeams;
         });
 
-        setSelectedPlayer(null);
+        setSelectedIds([]);
         return;
       }
 
@@ -376,7 +407,7 @@ export function TeamsBuilder() {
         return newTeams;
       });
 
-      setSelectedPlayer(null);
+      setSelectedIds([]);
       return;
     }
 
@@ -407,7 +438,76 @@ export function TeamsBuilder() {
       return newTeams;
     });
 
-    setSelectedPlayer(null);
+    setSelectedIds([]);
+  };
+
+  const togglePlayerSelection = (player: Player) => {
+    setSelectedIds((prev) =>
+      prev.includes(player.id)
+        ? prev.filter((id) => id !== player.id)
+        : [...prev, player.id]
+    );
+  };
+
+  const clearSelection = () => setSelectedIds([]);
+
+  // Mueve todos los jugadores seleccionados al destino, en el orden en que se tocaron.
+  // En los equipos solo entran hasta completar el cupo; el resto queda seleccionado.
+  const moveSelectedTo = (target: string) => {
+    if (selectedIds.length === 0) return;
+
+    const playersById = new Map(
+      Object.values(teams).flat().map((player) => [player.id, player])
+    );
+    const toMove = selectedIds
+      .filter((id) => findPlayerTeam(id) !== target)
+      .map((id) => playersById.get(id))
+      .filter((player): player is Player => Boolean(player));
+
+    const freeSlots =
+      target === "available" ? toMove.length : Math.max(TEAM_SIZE - teams[target].length, 0);
+    const moving = toMove.slice(0, freeSlots);
+
+    if (moving.length === 0) {
+      if (toMove.length > 0) toast.warning(`El equipo ya tiene ${TEAM_SIZE} jugadores`);
+      clearSelection();
+      return;
+    }
+
+    const movingIds = new Set(moving.map((player) => player.id));
+    setTeams((prev) => {
+      const next: TeamBuilderState = { ...prev };
+      for (const key of Object.keys(next)) {
+        next[key] = next[key].filter((player) => !movingIds.has(player.id));
+      }
+      next[target] = [...next[target], ...moving];
+      return next;
+    });
+
+    const leftOut = toMove.length - moving.length;
+    if (leftOut > 0) {
+      toast.warning(
+        `Equipo completo: ${leftOut} jugador${leftOut === 1 ? "" : "es"} quedó sin mover`
+      );
+      setSelectedIds(toMove.slice(freeSlots).map((player) => player.id));
+    } else {
+      clearSelection();
+    }
+    setSearch("");
+  };
+
+  const filteredAvailable = useMemo(() => {
+    const query = normalize(search);
+    if (!query) return teams.available;
+    return teams.available.filter((player) => normalize(player.name).includes(query));
+  }, [teams.available, search]);
+
+  const selectVisible = () => {
+    setSelectedIds((prev) => {
+      const ids = new Set(prev);
+      filteredAvailable.forEach((player) => ids.add(player.id));
+      return Array.from(ids);
+    });
   };
 
   const handleConfirmTeams = async () => {
@@ -550,6 +650,7 @@ export function TeamsBuilder() {
       });
 
       // Aplicar los equipos sugeridos
+      clearSelection();
       setTeams({
         available: [],
         team1,
@@ -592,6 +693,7 @@ export function TeamsBuilder() {
       team2Count += 1;
     }
 
+    clearSelection();
     setTeams({
       team1: shuffledPlayers.slice(0, team1Count),
       team2: shuffledPlayers.slice(team1Count, team1Count + team2Count),
@@ -648,43 +750,136 @@ export function TeamsBuilder() {
                   🎲 Random
                 </button>
               </div>
-              <AvailablePlayersDropZone>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 justify-items-center">
-                  {teams.available.map((player) => (
-                    <DraggablePlayerCircle
-                      key={player.id}
-                      player={player}
-                      isSelected={selectedPlayer?.id === player.id}
-                    />
-                  ))}
+              <div className="flex gap-2 mb-2">
+                <div className="relative flex-1">
+                  <input
+                    type="search"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Buscar jugador..."
+                    aria-label="Buscar jugador"
+                    className="w-full rounded-lg bg-gray-800 border border-gray-600 px-3 py-2 pr-8 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => setSearch("")}
+                      aria-label="Limpiar búsqueda"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
+                {search && filteredAvailable.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={selectVisible}
+                    className="text-xs px-3 rounded-lg bg-gray-700 hover:bg-gray-600 whitespace-nowrap"
+                  >
+                    Seleccionar visibles
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-gray-400 mb-2">
+                Tocá jugadores para seleccionarlos y después elegí el equipo. También podés arrastrarlos.
+              </p>
+              <AvailablePlayersDropZone>
+                {filteredAvailable.length === 0 ? (
+                  <p className="text-center text-sm text-gray-400 py-4">
+                    Ningún jugador coincide con &quot;{search}&quot;
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 justify-items-center">
+                    {filteredAvailable.map((player) => (
+                      <DraggablePlayerCircle
+                        key={player.id}
+                        player={player}
+                        isSelected={selectedIds.includes(player.id)}
+                        onToggle={togglePlayerSelection}
+                      />
+                    ))}
+                  </div>
+                )}
               </AvailablePlayersDropZone>
             </div>
           )}
 
         <div className="grid grid-cols-3 gap-4">
-          {["team1", "team2", "team3"].map((teamId, index) => (
+          {TEAM_IDS.map((teamId, index) => (
             <div key={teamId} className="flex flex-col">
               <DroppableTeam
                 id={teamId}
                 title={getColorByTeam(`Equipo ${index + 1}` as "Equipo 1" | "Equipo 2" | "Equipo 3")}
                 playerCount={teams[teamId].length}
                 rating={calculateTeamRating(teams[teamId])}
-                isOverflow={teams[teamId].length > 5}
+                isOverflow={teams[teamId].length > TEAM_SIZE}
+                selectedCount={selectedIds.length}
+                onMoveHere={() => moveSelectedTo(teamId)}
               >
                 {teams[teamId].map((player) => (
                   <DraggablePlayer
                     key={player.id}
                     player={player}
-                    isSelected={selectedPlayer?.id === player.id}
+                    isSelected={selectedIds.includes(player.id)}
                     draggedPlayer={draggedPlayer}
                     findPlayerTeam={findPlayerTeam}
+                    onToggle={togglePlayerSelection}
                   />
                 ))}
               </DroppableTeam>
             </div>
           ))}
         </div>
+
+          {selectedIds.length > 0 && (
+            <div
+              role="toolbar"
+              aria-label="Mover jugadores seleccionados"
+              className="sticky bottom-24 z-30 rounded-lg bg-gray-900/95 backdrop-blur border border-blue-500 p-3 shadow-lg shadow-black/40"
+            >
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-bold">
+                  {selectedIds.length} seleccionado{selectedIds.length === 1 ? "" : "s"}
+                </span>
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  className="text-xs text-gray-400 hover:text-white"
+                >
+                  Cancelar
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {TEAM_IDS.map((teamId, index) => {
+                  const full = teams[teamId].length >= TEAM_SIZE;
+                  return (
+                    <button
+                      key={teamId}
+                      type="button"
+                      onClick={() => moveSelectedTo(teamId)}
+                      disabled={full}
+                      className={`py-2 rounded-lg text-xs font-bold ${
+                        full ? "bg-gray-700 text-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                      }`}
+                    >
+                      → {getColorByTeam(`Equipo ${index + 1}` as "Equipo 1" | "Equipo 2" | "Equipo 3")}{" "}
+                      ({teams[teamId].length}/{TEAM_SIZE})
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedIds.some((id) => findPlayerTeam(id) !== "available") && (
+                <button
+                  type="button"
+                  onClick={() => moveSelectedTo("available")}
+                  className="w-full mt-2 py-2 rounded-lg text-xs bg-gray-700 hover:bg-gray-600"
+                >
+                  Devolver a disponibles
+                </button>
+              )}
+            </div>
+          )}
 
           <button
             onClick={handleSuggestTeamsByStats}
